@@ -8,6 +8,9 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 do
 local AllowedUsers = {
+	LockedScriptUsers = {
+		mxnkyhpc5015 = true,
+	},
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
 	zonebuxx29 = true, --ลูกค้า
@@ -15,8 +18,8 @@ local AllowedUsers = {
 	m4rymeqw = true, --มิวสิค
 	Achirada3 = true, --ลูกค้า
 	fewkung2580 = true, --ลูกค้า
-	Abox0611 = true, --ลูกค้า
-	guplqqeb = true, --ลูกค้า	
+	Abox0611 = true, --เด็กจ้าง
+	guplqqeb = true, --เด็กจ้าง
 	ufmn88zmuh19 = true, --ให้เทส
 	Tans24fe = true --ลูกค้า
 }
@@ -32,6 +35,8 @@ if not (LocalPlayer and AllowedUsers[LocalPlayer.Name]) then
 	end)
 	return
 end
+
+_G.CrystalToolsLockedScriptUnlocked = LocalPlayer and AllowedUsers.LockedScriptUsers and AllowedUsers.LockedScriptUsers[LocalPlayer.Name] == true
 end
 
 Players.LocalPlayer.Idled:Connect(function()
@@ -56,6 +61,10 @@ local Config = {
 	BombItemName = "ClassicBomb",
 	BuyBombInterval = 0.1,
 	BombStockRefreshInterval = 1,
+	RadarItemNames = { "CrystalRadar" },
+	RadarItemName = "CrystalRadar",
+	BuyRadarInterval = 0.1,
+	RadarStockRefreshInterval = 1,
 	PlayerTeleportInterval = 0,
 	PlayerTeleportOffset = CFrame.new(0, 0, 3),
 	BoulderTeleportInterval = 0.1,
@@ -72,6 +81,16 @@ local Config = {
 	BoulderTeleportStart = false,
 	BoulderEspStart = false,
 	BoulderPromptStart = false,
+	BoulderLevelFarmStart = false,
+	BoulderHopStart = false,
+	BoulderHopInterval = 1,
+	BoulderHopEmptyDelay = 2,
+	BoulderHopSort = "Asc",
+	BoulderLevelFarmLevel = "All",
+	BoulderLevelFarmLevels = { "All" },
+	BoulderLevelFarmUpDistance = 300,
+	BoulderLevelFarmForwardDistance = 1800,
+	BoulderLevelFarmSpeed = 300,
 	DigReplayStart = false,
 	NoclipStart = false,
 	FloatStart = false,
@@ -87,7 +106,10 @@ local Config = {
 	Collapsed = false,
 	GearShopBuyAll = false,
 	GearShopAutoBuyEnabled = false,
-	GearShopStartBuy = false
+	GearShopStartBuy = false,
+	RadarShopBuyAll = false,
+	RadarShopAutoBuyEnabled = false,
+	RadarShopStartBuy = false
 }
 
 Config.GearShopConfigFile = ("CrystalTools_GearShop_%s.json"):format(tostring(LocalPlayer and LocalPlayer.UserId or "local"))
@@ -134,6 +156,11 @@ do
 		if type(savedConfig.BombItemNames) == "table" or type(savedConfig.GearItemNames) == "table" then
 			Config.BombItemNames = savedNames
 			Config.BombItemName = savedNames[1]
+		end
+
+		if type(savedConfig.RadarItemNames) == "table" or type(savedConfig.SelectedRadarItems) == "table" then
+			Config.RadarItemNames = copyStringArray(savedConfig.RadarItemNames or savedConfig.SelectedRadarItems)
+			Config.RadarItemName = Config.RadarItemNames[1]
 		end
 
 		if type(savedConfig.RuneItemNames) == "table" or type(savedConfig.SelectedRuneItems) == "table" then
@@ -188,6 +215,13 @@ do
 		if savedConfig.SelectedDigBoulderName ~= nil then
 			Config.SelectedDigBoulderName = tostring(savedConfig.SelectedDigBoulderName)
 		end
+		if type(savedConfig.BoulderLevelFarmLevels) == "table" or type(savedConfig.SelectedBoulderLevels) == "table" then
+			Config.BoulderLevelFarmLevels = copyStringArray(savedConfig.BoulderLevelFarmLevels or savedConfig.SelectedBoulderLevels)
+			Config.BoulderLevelFarmLevel = Config.BoulderLevelFarmLevels[1] or "All"
+		elseif savedConfig.BoulderLevelFarmLevel ~= nil then
+			Config.BoulderLevelFarmLevel = tostring(savedConfig.BoulderLevelFarmLevel)
+			Config.BoulderLevelFarmLevels = { Config.BoulderLevelFarmLevel }
+		end
 		if savedConfig.Collapsed ~= nil then
 			Config.Collapsed = savedConfig.Collapsed == true
 		end
@@ -197,6 +231,15 @@ do
 		Config.BoulderTeleportStart = savedConfig.BoulderTeleportStart == true or savedConfig.BoulderTeleporting == true
 		Config.BoulderEspStart = savedConfig.BoulderEspStart == true or savedConfig.BoulderEspEnabled == true
 		Config.BoulderPromptStart = savedConfig.BoulderPromptStart == true or savedConfig.BoulderPromptEnabled == true
+		Config.BoulderLevelFarmStart = savedConfig.BoulderLevelFarmStart == true or savedConfig.BoulderLevelFarmEnabled == true
+		Config.BoulderHopStart = savedConfig.BoulderHopStart == true or savedConfig.BoulderHopEnabled == true
+		if savedConfig.BoulderHopSort ~= nil then
+			Config.BoulderHopSort = tostring(savedConfig.BoulderHopSort)
+		end
+		if not _G.CrystalToolsLockedScriptUnlocked then
+			Config.BoulderLevelFarmStart = false
+			Config.BoulderHopStart = false
+		end
 		Config.DigReplayStart = savedConfig.DigReplayStart == true or savedConfig.DigReplayEnabled == true
 		Config.NoclipStart = savedConfig.NoclipStart == true or savedConfig.NoclipEnabled == true
 		Config.FloatStart = savedConfig.FloatStart == true or savedConfig.Floating == true
@@ -207,6 +250,11 @@ do
 			or savedConfig.StartBuy == true
 			or savedConfig.GearShopAutoBuyEnabled == true
 		Config.GearShopAutoBuyEnabled = Config.GearShopStartBuy
+		Config.RadarShopBuyAll = savedConfig.RadarShopBuyAll == true
+		Config.RadarShopStartBuy = savedConfig.RadarShopStartBuy == true
+			or savedConfig.BuyRadarStart == true
+			or savedConfig.RadarShopAutoBuyEnabled == true
+		Config.RadarShopAutoBuyEnabled = Config.RadarShopStartBuy
 	end
 
 	applySavedConfig(loadGearShopConfig())
@@ -247,16 +295,30 @@ end
 
 local State = {
 	Connections = {},
+	LockedScriptUnlocked = _G.CrystalToolsLockedScriptUnlocked == true,
 	Farming = false,
 	Dropping = false,
 	DroppingRunes = false,
 	DroppingMoneyCrystals = false,
 	BuyingBomb = false,
 	GearShopBuyAll = Config.GearShopBuyAll == true,
+	BuyingRadar = false,
+	RadarShopBuyAll = Config.RadarShopBuyAll == true,
 	PlayerTeleporting = false,
 	BoulderTeleporting = false,
 	BoulderEspEnabled = false,
 	BoulderPromptEnabled = false,
+	BoulderLevelFarmEnabled = false,
+	BoulderLevelFarmThreadRunning = false,
+	BoulderLevelFarmTarget = nil,
+	BoulderLevelFarmTween = nil,
+	BoulderHopEnabled = false,
+	BoulderHopTeleporting = false,
+	BoulderHopNoTargetSince = nil,
+	PickaxeShopNameSet = nil,
+	PickaxeShopNameSetTick = 0,
+	SelectedBoulderLevel = tostring(Config.BoulderLevelFarmLevel or "All"),
+	SelectedBoulderLevels = {},
 	NoclipEnabled = false,
 	Floating = false,
 	FloatHeight = nil,
@@ -268,6 +330,7 @@ local State = {
 	InfiniteJumpEnabled = false,
 	Collapsed = Config.Collapsed == true,
 	SelectedBombItems = {},
+	SelectedRadarItems = {},
 	SelectedRuneItems = {},
 	RuneDropAmount = tonumber(Config.RuneDropAmount) or 1,
 	MoneyDropThresholdText = tostring(Config.MoneyDropThresholdText or ""),
@@ -282,10 +345,16 @@ local State = {
 	BoulderNoclipParts = {},
 	LastFarmTick = 0,
 	LastBuyBombTick = 0,
+	LastBuyRadarTick = 0,
 	LastPlayerTeleportTick = 0,
 	LastBoulderTeleportTick = 0,
 	LastBoulderPromptTick = 0,
-	LastBuyBombStatus = nil
+	LastBoulderHopTick = 0,
+	LastBuyBombStatus = nil,
+	LastBuyRadarStatus = nil,
+	RadarShopConfig = nil,
+	RadarShopStockCache = {},
+	LastRadarShopStockQuery = 0
 }
 
 _G.CrystalToolsUI = State
@@ -298,10 +367,25 @@ for _, bombName in ipairs(Config.BombItemNames or { Config.BombItemName }) do
 	end
 end
 
+for _, radarName in ipairs(Config.RadarItemNames or { Config.RadarItemName }) do
+	if radarName then
+		State.SelectedRadarItems[tostring(radarName)] = true
+	end
+end
+
 for _, runeName in ipairs(Config.RuneItemNames or {}) do
 	if runeName then
 		State.SelectedRuneItems[tostring(runeName)] = true
 	end
+end
+
+for _, levelName in ipairs(Config.BoulderLevelFarmLevels or { Config.BoulderLevelFarmLevel or "All" }) do
+	if levelName and tostring(levelName) ~= "" then
+		State.SelectedBoulderLevels[tostring(levelName)] = true
+	end
+end
+if next(State.SelectedBoulderLevels) == nil then
+	State.SelectedBoulderLevels.All = true
 end
 
 function State.SaveConfig()
@@ -317,6 +401,14 @@ function State.SaveConfig()
 	end
 	table.sort(selectedGearNames)
 
+	local selectedRadarNames = {}
+	for itemName, selected in pairs(State.SelectedRadarItems or {}) do
+		if selected then
+			table.insert(selectedRadarNames, tostring(itemName))
+		end
+	end
+	table.sort(selectedRadarNames)
+
 	local selectedRuneNames = {}
 	for itemName, selected in pairs(State.SelectedRuneItems or {}) do
 		if selected then
@@ -325,19 +417,52 @@ function State.SaveConfig()
 	end
 	table.sort(selectedRuneNames)
 
+	local selectedBoulderLevels = {}
+	for levelName, selected in pairs(State.SelectedBoulderLevels or {}) do
+		if selected then
+			table.insert(selectedBoulderLevels, tostring(levelName))
+		end
+	end
+	table.sort(selectedBoulderLevels, function(left, right)
+		local leftRank = State.GetBoulderLevelRankText and State.GetBoulderLevelRankText(left) or 0
+		local rightRank = State.GetBoulderLevelRankText and State.GetBoulderLevelRankText(right) or 0
+		if left == "All" then
+			return true
+		end
+		if right == "All" then
+			return false
+		end
+		if leftRank ~= rightRank then
+			return leftRank > rightRank
+		end
+		return tostring(left):lower() < tostring(right):lower()
+	end)
+	if #selectedBoulderLevels == 0 then
+		table.insert(selectedBoulderLevels, "All")
+	end
+
 	Config.BombItemNames = selectedGearNames
 	Config.BombItemName = selectedGearNames[1]
+	Config.RadarItemNames = selectedRadarNames
+	Config.RadarItemName = selectedRadarNames[1]
 	Config.RuneItemNames = selectedRuneNames
 	Config.RuneDropAmount = State.RuneDropAmount or 1
 	Config.MoneyDropThresholdText = State.MoneyDropThresholdText or ""
 	Config.GearShopBuyAll = State.GearShopBuyAll == true
 	Config.GearShopAutoBuyEnabled = State.BuyingBomb == true
 	Config.GearShopStartBuy = State.BuyingBomb == true
+	Config.RadarShopBuyAll = State.RadarShopBuyAll == true
+	Config.RadarShopAutoBuyEnabled = State.BuyingRadar == true
+	Config.RadarShopStartBuy = State.BuyingRadar == true
 	Config.FarmStart = State.Farming == true
 	Config.PlayerTeleportStart = State.PlayerTeleporting == true
 	Config.BoulderTeleportStart = State.BoulderTeleporting == true
 	Config.BoulderEspStart = State.BoulderEspEnabled == true
 	Config.BoulderPromptStart = State.BoulderPromptEnabled == true
+	Config.BoulderLevelFarmStart = State.BoulderLevelFarmEnabled == true
+	Config.BoulderHopStart = State.BoulderHopEnabled == true
+	Config.BoulderLevelFarmLevels = selectedBoulderLevels
+	Config.BoulderLevelFarmLevel = selectedBoulderLevels[1] or "All"
 	Config.DigReplayStart = State.DigReplayEnabled == true
 	Config.NoclipStart = State.NoclipEnabled == true
 	Config.FloatStart = State.Floating == true
@@ -374,6 +499,14 @@ function State.SaveConfig()
 		BoulderEspEnabled = Config.BoulderEspStart,
 		BoulderPromptStart = Config.BoulderPromptStart,
 		BoulderPromptEnabled = Config.BoulderPromptStart,
+		BoulderLevelFarmStart = Config.BoulderLevelFarmStart,
+		BoulderLevelFarmEnabled = Config.BoulderLevelFarmStart,
+		BoulderHopStart = Config.BoulderHopStart,
+		BoulderHopEnabled = Config.BoulderHopStart,
+		BoulderHopSort = Config.BoulderHopSort,
+		BoulderLevelFarmLevel = Config.BoulderLevelFarmLevel,
+		BoulderLevelFarmLevels = selectedBoulderLevels,
+		SelectedBoulderLevels = selectedBoulderLevels,
 		DigReplayStart = Config.DigReplayStart,
 		DigReplayEnabled = Config.DigReplayStart,
 		SelectedDigBoulderName = State.SelectedDigBoulderName,
@@ -391,7 +524,13 @@ function State.SaveConfig()
 		GearShopStartBuy = State.BuyingBomb == true,
 		StartBuy = State.BuyingBomb == true,
 		BombItemNames = selectedGearNames,
-		GearItemNames = selectedGearNames
+		GearItemNames = selectedGearNames,
+		RadarShopBuyAll = State.RadarShopBuyAll == true,
+		RadarShopAutoBuyEnabled = State.BuyingRadar == true,
+		RadarShopStartBuy = State.BuyingRadar == true,
+		BuyRadarStart = State.BuyingRadar == true,
+		RadarItemNames = selectedRadarNames,
+		SelectedRadarItems = selectedRadarNames
 	}
 
 	local ok = pcall(function()
@@ -515,12 +654,12 @@ local function getCharacterParts(player)
 end
 
 local UI = {}
-local DESKTOP_HEADER_HEIGHT = 46
-local MOBILE_HEADER_HEIGHT = 48
-local CONTENT_HEIGHT = 1690
-local HORIZONTAL_CONTENT_HEIGHT = 650
-local DESKTOP_COLLAPSED_WIDTH = 430
-local MOBILE_COLLAPSED_WIDTH = 330
+local DESKTOP_HEADER_HEIGHT = 42
+local MOBILE_HEADER_HEIGHT = 40
+local CONTENT_HEIGHT = 2120
+local HORIZONTAL_CONTENT_HEIGHT = 920
+local DESKTOP_COLLAPSED_WIDTH = 390
+local MOBILE_COLLAPSED_WIDTH = 300
 
 local Gui = create("ScreenGui", {
 	Name = "CrystalTools_NewUI",
@@ -538,7 +677,7 @@ end)
 local Main = create("Frame", {
 	Name = "Main",
 	Position = UDim2.new(0, 22, 0, 112),
-	Size = UDim2.new(0, 740, 0, DESKTOP_HEADER_HEIGHT + HORIZONTAL_CONTENT_HEIGHT),
+	Size = UDim2.new(0, 700, 0, DESKTOP_HEADER_HEIGHT + HORIZONTAL_CONTENT_HEIGHT),
 	BackgroundColor3 = Theme.Background,
 	BackgroundTransparency = 0,
 	BorderSizePixel = 0,
@@ -548,9 +687,9 @@ local Main = create("Frame", {
 styleSurface(Main, 6, Theme.Accent, 0.14, 1.5)
 UI.Main = Main
 UI.ExpandedSize = Main.Size
-UI.CollapsedSize = UDim2.new(0, 740, 0, DESKTOP_HEADER_HEIGHT)
-UI.ExpandedPixelSize = Vector2.new(740, DESKTOP_HEADER_HEIGHT + HORIZONTAL_CONTENT_HEIGHT)
-UI.CollapsedPixelSize = Vector2.new(740, DESKTOP_HEADER_HEIGHT)
+UI.CollapsedSize = UDim2.new(0, 700, 0, DESKTOP_HEADER_HEIGHT)
+UI.ExpandedPixelSize = Vector2.new(700, DESKTOP_HEADER_HEIGHT + HORIZONTAL_CONTENT_HEIGHT)
+UI.CollapsedPixelSize = Vector2.new(700, DESKTOP_HEADER_HEIGHT)
 
 create("UIGradient", {
 	Color = ColorSequence.new({
@@ -583,7 +722,7 @@ local HeaderTitle = create("TextLabel", {
 	BackgroundTransparency = 1,
 	Text = "BENJAMINX | Mine a Mountain",
 	TextColor3 = Theme.Text,
-	TextSize = 17,
+	TextSize = 15,
 	Font = Enum.Font.GothamBold,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextTruncate = Enum.TextTruncate.AtEnd
@@ -1121,6 +1260,72 @@ UI.DigBoulderDropdownLayout = create("UIListLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder
 }, UI.DigBoulderDropdownList)
 
+UI.BoulderLevelFarmLabel = create("TextLabel", {
+	Position = UDim2.new(0, 14, 0, 954),
+	Size = UDim2.new(1, -28, 0, 18),
+	BackgroundTransparency = 1,
+	Text = "Auto Farm Rune",
+	TextColor3 = Theme.Muted,
+	TextSize = 12,
+	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Content)
+
+UI.BoulderLevelDropdownButton = create("TextButton", {
+	Position = UDim2.new(0, 14, 0, 978),
+	Size = UDim2.new(1 / 2, -19, 0, 34),
+	BackgroundColor3 = Theme.Panel,
+	BorderSizePixel = 0,
+	Text = "Level: All",
+	TextColor3 = Theme.Text,
+	TextSize = 12,
+	Font = Enum.Font.Gotham,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd
+}, Content)
+styleSurface(UI.BoulderLevelDropdownButton, 6, Theme.Accent)
+create("UIPadding", {
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8)
+}, UI.BoulderLevelDropdownButton)
+
+UI.BoulderLevelFarmButton = create("TextButton", {
+	Position = UDim2.new(1 / 2, 5, 0, 978),
+	Size = UDim2.new(1 / 2, -19, 0, 34),
+	BackgroundColor3 = Theme.ButtonDark,
+	BorderSizePixel = 0,
+	Text = "LEVEL FARM OFF",
+	TextColor3 = Theme.Text,
+	TextSize = 12,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.BoulderLevelFarmButton, 6, Theme.Accent)
+
+UI.BoulderLevelDropdownList = create("ScrollingFrame", {
+	Position = UDim2.new(0, 14, 0, 1018),
+	Size = UDim2.new(1, -28, 0, 102),
+	BackgroundColor3 = Theme.Panel,
+	BorderSizePixel = 0,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	ScrollBarThickness = 4,
+	ScrollBarImageColor3 = Theme.Accent,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+	ElasticBehavior = Enum.ElasticBehavior.Never,
+	Visible = false,
+	ZIndex = 7
+}, Content)
+styleSurface(UI.BoulderLevelDropdownList, 6, Theme.Accent)
+create("UIPadding", {
+	PaddingTop = UDim.new(0, 6),
+	PaddingLeft = UDim.new(0, 6),
+	PaddingRight = UDim.new(0, 6),
+	PaddingBottom = UDim.new(0, 6)
+}, UI.BoulderLevelDropdownList)
+UI.BoulderLevelDropdownLayout = create("UIListLayout", {
+	Padding = UDim.new(0, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder
+}, UI.BoulderLevelDropdownList)
+
 local PlayerTPLabel = create("TextLabel", {
 	Position = UDim2.new(0, 14, 0, 1006),
 	Size = UDim2.new(1, -28, 0, 18),
@@ -1299,6 +1504,18 @@ local BoulderPromptButton = create("TextButton", {
 styleSurface(BoulderPromptButton, 6, Theme.Accent)
 UI.BoulderPromptButton = BoulderPromptButton
 
+UI.BoulderHopButton = create("TextButton", {
+	Position = UDim2.new(4 / 5, -6, 0, 936),
+	Size = UDim2.new(1 / 5, -12, 0, 34),
+	BackgroundColor3 = Theme.ButtonDark,
+	BorderSizePixel = 0,
+	Text = "HOP OFF",
+	TextColor3 = Theme.Text,
+	TextSize = 11,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.BoulderHopButton, 6, Theme.Accent)
+
 UI.FloatButton = create("TextButton", {
 	Position = UDim2.new(0, 14, 0, 976),
 	Size = UDim2.new(1 / 3, -16, 0, 34),
@@ -1417,6 +1634,84 @@ UI.BuyAllBombButton = create("TextButton", {
 }, Content)
 styleSurface(UI.BuyAllBombButton, 6, Theme.Accent)
 
+UI.RadarShopLabel = create("TextLabel", {
+	Position = UDim2.new(0, 14, 0, 1240),
+	Size = UDim2.new(1, -28, 0, 18),
+	BackgroundTransparency = 1,
+	Text = "Radar shop",
+	TextColor3 = Theme.Muted,
+	TextSize = 12,
+	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Content)
+
+UI.RadarDropdownButton = create("TextButton", {
+	Position = UDim2.new(0, 14, 0, 1264),
+	Size = UDim2.new(1, -28, 0, 32),
+	BackgroundColor3 = Theme.Panel,
+	BorderSizePixel = 0,
+	Text = "Radar: Crystal Radar",
+	TextColor3 = Theme.Text,
+	TextSize = 12,
+	Font = Enum.Font.Gotham,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd
+}, Content)
+styleSurface(UI.RadarDropdownButton, 6, Theme.Accent)
+create("UIPadding", {
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8)
+}, UI.RadarDropdownButton)
+
+UI.RadarDropdownList = create("ScrollingFrame", {
+	Position = UDim2.new(0, 14, 0, 1378),
+	Size = UDim2.new(1, -28, 0, 102),
+	BackgroundColor3 = Theme.Panel,
+	BorderSizePixel = 0,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	ScrollBarThickness = 4,
+	ScrollBarImageColor3 = Theme.Accent,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+	ElasticBehavior = Enum.ElasticBehavior.Never,
+	Visible = false,
+	ZIndex = 7
+}, Content)
+styleSurface(UI.RadarDropdownList, 6, Theme.Accent)
+create("UIPadding", {
+	PaddingTop = UDim.new(0, 6),
+	PaddingLeft = UDim.new(0, 6),
+	PaddingRight = UDim.new(0, 6),
+	PaddingBottom = UDim.new(0, 6)
+}, UI.RadarDropdownList)
+UI.RadarDropdownLayout = create("UIListLayout", {
+	Padding = UDim.new(0, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder
+}, UI.RadarDropdownList)
+
+UI.BuyAllRadarButton = create("TextButton", {
+	Position = UDim2.new(0, 14, 0, 1304),
+	Size = UDim2.new(1 / 2, -18, 0, 34),
+	BackgroundColor3 = Theme.ButtonDark,
+	BorderSizePixel = 0,
+	Text = "Buy All Radar OFF",
+	TextColor3 = Theme.Text,
+	TextSize = 13,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.BuyAllRadarButton, 6, Theme.Accent)
+
+UI.BuyRadarButton = create("TextButton", {
+	Position = UDim2.new(1 / 2, 4, 0, 1304),
+	Size = UDim2.new(1 / 2, -18, 0, 34),
+	BackgroundColor3 = Theme.Button,
+	BorderSizePixel = 0,
+	Text = "Start Buy Radar",
+	TextColor3 = Theme.Text,
+	TextSize = 14,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.BuyRadarButton, 6, Theme.Accent)
+
 local StatusLabel = create("TextLabel", {
 	Position = UDim2.new(0, 14, 0, 1240),
 	Size = UDim2.new(1, -28, 0, 18),
@@ -1443,7 +1738,7 @@ do
 	local function restyleSectionLabel(label)
 		label.Text = string.upper(label.Text)
 		label.TextColor3 = Theme.Muted
-		label.TextSize = 11
+		label.TextSize = 10
 		label.Font = Enum.Font.GothamBold
 		label.TextTransparency = 0
 	end
@@ -1451,7 +1746,7 @@ do
 	local function restyleTextControl(control, background)
 		control.BackgroundColor3 = background or Theme.Panel
 		control.TextColor3 = Theme.Text
-		control.TextSize = 13
+		control.TextSize = 12
 		control.Font = Enum.Font.Gotham
 		control.TextTransparency = 0
 		if control:IsA("TextButton") then
@@ -1465,9 +1760,11 @@ do
 		CrystalActionsLabel,
 		UI.MoneyDropLabel,
 		UI.RuneDropLabel,
+		UI.BoulderLevelFarmLabel,
 		PlayerTPLabel,
 		BoulderTPLabel,
-		GearShopLabel
+		GearShopLabel,
+		UI.RadarShopLabel
 	}) do
 		restyleSectionLabel(label)
 	end
@@ -1483,7 +1780,9 @@ do
 		BoulderDropdownButton,
 		UI.RuneDropdownButton,
 		UI.DigBoulderDropdownButton,
-		BombDropdownButton
+		UI.BoulderLevelDropdownButton,
+		BombDropdownButton,
+		UI.RadarDropdownButton
 	}) do
 		restyleTextControl(control, Theme.ButtonDark)
 		restyleStroke(control, Theme.GlowSoft, 0.35, 1)
@@ -1507,24 +1806,28 @@ do
 		DropAllButton,
 		UI.DropMoneyButton,
 		UI.DigReplayButton,
+		UI.BoulderLevelFarmButton,
 		PlayerTeleportButton,
 		BoulderTeleportButton,
 		UI.BoulderNoclipButton,
 		BoulderEspButton,
 		BoulderPromptButton,
+		UI.BoulderHopButton,
 		UI.FloatButton,
 		UI.SpeedButton,
 		UI.InfiniteJumpButton,
 		UI.DropRuneButton,
 		UI.BuyAllBombButton,
 		BuyBombButton,
+		UI.BuyAllRadarButton,
+		UI.BuyRadarButton,
 		WeightFilterButton,
 		MoneyFilterButton,
 		AboveButton,
 		BelowButton
 	}) do
 		restyleTextControl(button, button.BackgroundColor3)
-		button.TextSize = 13
+		button.TextSize = 12
 		button.Font = Enum.Font.GothamBold
 		restyleStroke(button, Theme.GlowSoft, 0.35, 1)
 	end
@@ -1536,7 +1839,9 @@ do
 		BoulderDropdownList,
 		UI.RuneDropdownList,
 		UI.DigBoulderDropdownList,
-		BombDropdownList
+		UI.BoulderLevelDropdownList,
+		BombDropdownList,
+		UI.RadarDropdownList
 	}) do
 		list.BackgroundColor3 = Theme.Panel
 		restyleStroke(list, Theme.GlowSoft, 0.55, 1)
@@ -1549,13 +1854,29 @@ end
 StatusLabel.BackgroundTransparency = 0
 StatusLabel.BackgroundColor3 = Theme.PanelAlt
 StatusLabel.TextColor3 = Theme.Text
-StatusLabel.TextSize = 12
+StatusLabel.TextSize = 11
 StatusLabel.Font = Enum.Font.Gotham
 styleSurface(StatusLabel, 6, Theme.GlowSoft, 0.55, 1)
 
 local function setStatus(text, color)
 	StatusLabel.Text = text
 	StatusLabel.TextColor3 = color or Theme.Muted
+end
+
+function State.IsLockedScriptUnlocked()
+	return State.LockedScriptUnlocked == true
+end
+
+function State.ShowLockedScriptMessage()
+	setStatus("Locked: add username to LockedScriptUsers", Theme.Bad)
+	pcall(function()
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "BenJaMinX",
+			Text = "ต้องซื้อระบบนี้เพิ่มถึงจะปลดล็อคได้",
+			Duration = 5
+		})
+	end)
+	return false
 end
 
 function State.UpdateDigReplayButton()
@@ -1650,6 +1971,31 @@ local function setRect(object, x, y, width, height)
 	object.Size = UDim2.new(0, width, 0, height)
 end
 
+function State.ApplyContentDensity(positionScale, heightScale, baseCanvasHeight)
+	for _, child in ipairs(Content:GetChildren()) do
+		if child:IsA("GuiObject") and child ~= FilterTypeList and child ~= WeightModeList then
+			local position = child.Position
+			local size = child.Size
+			child.Position = UDim2.new(
+				position.X.Scale,
+				position.X.Offset,
+				position.Y.Scale,
+				math.floor((position.Y.Offset * positionScale) + 0.5)
+			)
+			if size.Y.Offset > 0 then
+				child.Size = UDim2.new(
+					size.X.Scale,
+					size.X.Offset,
+					size.Y.Scale,
+					math.max(14, math.floor((size.Y.Offset * heightScale) + 0.5))
+				)
+			end
+		end
+	end
+
+	Content.CanvasSize = UDim2.new(0, 0, 0, math.floor((baseCanvasHeight * positionScale) + 28))
+end
+
 local function applyVerticalControlsLayout()
 	Content.CanvasSize = UDim2.new(0, 0, 0, CONTENT_HEIGHT)
 
@@ -1710,48 +2056,70 @@ local function applyVerticalControlsLayout()
 	UI.DigBoulderDropdownList.Position = UDim2.new(0, 14, 0, 836)
 	UI.DigBoulderDropdownList.Size = UDim2.new(1, -28, 0, 102)
 
-	PlayerTPLabel.Position = UDim2.new(0, 14, 0, 954)
+	UI.BoulderLevelFarmLabel.Position = UDim2.new(0, 14, 0, 954)
+	UI.BoulderLevelFarmLabel.Size = UDim2.new(1, -28, 0, 18)
+	UI.BoulderLevelDropdownButton.Position = UDim2.new(0, 14, 0, 978)
+	UI.BoulderLevelDropdownButton.Size = UDim2.new(1 / 2, -19, 0, 34)
+	UI.BoulderLevelFarmButton.Position = UDim2.new(1 / 2, 5, 0, 978)
+	UI.BoulderLevelFarmButton.Size = UDim2.new(1 / 2, -19, 0, 34)
+	UI.BoulderLevelDropdownList.Position = UDim2.new(0, 14, 0, 1018)
+	UI.BoulderLevelDropdownList.Size = UDim2.new(1, -28, 0, 102)
+
+	PlayerTPLabel.Position = UDim2.new(0, 14, 0, 1138)
 	PlayerTPLabel.Size = UDim2.new(1, -28, 0, 18)
-	PlayerDropdownButton.Position = UDim2.new(0, 14, 0, 978)
+	PlayerDropdownButton.Position = UDim2.new(0, 14, 0, 1162)
 	PlayerDropdownButton.Size = UDim2.new(1, -28, 0, 32)
-	PlayerDropdownList.Position = UDim2.new(0, 14, 0, 1016)
+	PlayerDropdownList.Position = UDim2.new(0, 14, 0, 1200)
 	PlayerDropdownList.Size = UDim2.new(1, -28, 0, 102)
-	PlayerTeleportButton.Position = UDim2.new(0, 14, 0, 1130)
+	PlayerTeleportButton.Position = UDim2.new(0, 14, 0, 1314)
 	PlayerTeleportButton.Size = UDim2.new(1, -28, 0, 34)
 
-	BoulderTPLabel.Position = UDim2.new(0, 14, 0, 1180)
+	BoulderTPLabel.Position = UDim2.new(0, 14, 0, 1364)
 	BoulderTPLabel.Size = UDim2.new(1, -28, 0, 18)
-	BoulderDropdownButton.Position = UDim2.new(0, 14, 0, 1204)
+	BoulderDropdownButton.Position = UDim2.new(0, 14, 0, 1388)
 	BoulderDropdownButton.Size = UDim2.new(1, -28, 0, 32)
-	BoulderDropdownList.Position = UDim2.new(0, 14, 0, 1242)
+	BoulderDropdownList.Position = UDim2.new(0, 14, 0, 1426)
 	BoulderDropdownList.Size = UDim2.new(1, -28, 0, 102)
-	BoulderTeleportButton.Position = UDim2.new(0, 14, 0, 1356)
-	BoulderTeleportButton.Size = UDim2.new(1 / 4, -13, 0, 34)
-	UI.BoulderNoclipButton.Position = UDim2.new(1 / 4, 9, 0, 1356)
-	UI.BoulderNoclipButton.Size = UDim2.new(1 / 4, -13, 0, 34)
-	BoulderEspButton.Position = UDim2.new(1 / 2, 4, 0, 1356)
-	BoulderEspButton.Size = UDim2.new(1 / 4, -13, 0, 34)
-	BoulderPromptButton.Position = UDim2.new(3 / 4, -1, 0, 1356)
-	BoulderPromptButton.Size = UDim2.new(1 / 4, -13, 0, 34)
-	UI.FloatButton.Position = UDim2.new(0, 14, 0, 1396)
+	BoulderTeleportButton.Position = UDim2.new(0, 14, 0, 1540)
+	BoulderTeleportButton.Size = UDim2.new(1 / 5, -12, 0, 34)
+	UI.BoulderNoclipButton.Position = UDim2.new(1 / 5, 9, 0, 1540)
+	UI.BoulderNoclipButton.Size = UDim2.new(1 / 5, -12, 0, 34)
+	BoulderEspButton.Position = UDim2.new(2 / 5, 4, 0, 1540)
+	BoulderEspButton.Size = UDim2.new(1 / 5, -12, 0, 34)
+	BoulderPromptButton.Position = UDim2.new(3 / 5, -1, 0, 1540)
+	BoulderPromptButton.Size = UDim2.new(1 / 5, -12, 0, 34)
+	UI.BoulderHopButton.Position = UDim2.new(4 / 5, -6, 0, 1540)
+	UI.BoulderHopButton.Size = UDim2.new(1 / 5, -12, 0, 34)
+	UI.FloatButton.Position = UDim2.new(0, 14, 0, 1580)
 	UI.FloatButton.Size = UDim2.new(1 / 3, -16, 0, 34)
-	UI.SpeedButton.Position = UDim2.new(1 / 3, 4, 0, 1396)
+	UI.SpeedButton.Position = UDim2.new(1 / 3, 4, 0, 1580)
 	UI.SpeedButton.Size = UDim2.new(1 / 3, -16, 0, 34)
-	UI.InfiniteJumpButton.Position = UDim2.new(2 / 3, -6, 0, 1396)
+	UI.InfiniteJumpButton.Position = UDim2.new(2 / 3, -6, 0, 1580)
 	UI.InfiniteJumpButton.Size = UDim2.new(1 / 3, -16, 0, 34)
 
-	GearShopLabel.Position = UDim2.new(0, 14, 0, 1446)
+	GearShopLabel.Position = UDim2.new(0, 14, 0, 1630)
 	GearShopLabel.Size = UDim2.new(1, -28, 0, 18)
-	BombDropdownButton.Position = UDim2.new(0, 14, 0, 1470)
+	BombDropdownButton.Position = UDim2.new(0, 14, 0, 1654)
 	BombDropdownButton.Size = UDim2.new(1, -28, 0, 32)
-	UI.BuyAllBombButton.Position = UDim2.new(0, 14, 0, 1510)
+	UI.BuyAllBombButton.Position = UDim2.new(0, 14, 0, 1694)
 	UI.BuyAllBombButton.Size = UDim2.new(1 / 2, -18, 0, 34)
-	BuyBombButton.Position = UDim2.new(1 / 2, 4, 0, 1510)
+	BuyBombButton.Position = UDim2.new(1 / 2, 4, 0, 1694)
 	BuyBombButton.Size = UDim2.new(1 / 2, -18, 0, 34)
-	BombDropdownList.Position = UDim2.new(0, 14, 0, 1552)
+	BombDropdownList.Position = UDim2.new(0, 14, 0, 1736)
 	BombDropdownList.Size = UDim2.new(1, -28, 0, 102)
-	StatusLabel.Position = UDim2.new(0, 14, 0, 1660)
+	UI.RadarShopLabel.Position = UDim2.new(0, 14, 0, 1850)
+	UI.RadarShopLabel.Size = UDim2.new(1, -28, 0, 18)
+	UI.RadarDropdownButton.Position = UDim2.new(0, 14, 0, 1874)
+	UI.RadarDropdownButton.Size = UDim2.new(1, -28, 0, 32)
+	UI.BuyAllRadarButton.Position = UDim2.new(0, 14, 0, 1914)
+	UI.BuyAllRadarButton.Size = UDim2.new(1 / 2, -18, 0, 34)
+	UI.BuyRadarButton.Position = UDim2.new(1 / 2, 4, 0, 1914)
+	UI.BuyRadarButton.Size = UDim2.new(1 / 2, -18, 0, 34)
+	UI.RadarDropdownList.Position = UDim2.new(0, 14, 0, 1956)
+	UI.RadarDropdownList.Size = UDim2.new(1, -28, 0, 102)
+	StatusLabel.Position = UDim2.new(0, 14, 0, 2064)
 	StatusLabel.Size = UDim2.new(1, -28, 0, 18)
+	State.ApplyContentDensity(UI.IsMobile and 0.78 or 0.86, UI.IsMobile and 0.82 or 0.88, CONTENT_HEIGHT)
 end
 
 local function applyHorizontalControlsLayout(width)
@@ -1771,7 +2139,7 @@ local function applyHorizontalControlsLayout(width)
 	local halfWidth = math.floor((columnWidth - 10) / 2)
 	local tpButtonWidth = math.min(104, math.max(82, math.floor(columnWidth * 0.32)))
 	local playerDropdownWidth = columnWidth - tpButtonWidth - 8
-	local boulderActionWidth = math.floor((columnWidth - 30) / 4)
+	local boulderActionWidth = math.floor((columnWidth - 40) / 5)
 	local runeButtonWidth = math.min(104, math.max(86, math.floor(columnWidth * 0.28)))
 	local runeAmountWidth = math.min(72, math.max(58, math.floor(columnWidth * 0.2)))
 	local runeDropdownWidth = columnWidth - runeButtonWidth - runeAmountWidth - 16
@@ -1816,17 +2184,28 @@ local function applyHorizontalControlsLayout(width)
 	setRect(UI.BoulderNoclipButton, rightX + boulderActionWidth + 10, 158, boulderActionWidth, 32)
 	setRect(BoulderEspButton, rightX + (boulderActionWidth * 2) + 20, 158, boulderActionWidth, 32)
 	setRect(BoulderPromptButton, rightX + (boulderActionWidth * 3) + 30, 158, boulderActionWidth, 32)
+	setRect(UI.BoulderHopButton, rightX + (boulderActionWidth * 4) + 40, 158, boulderActionWidth, 32)
 	setRect(BoulderDropdownList, rightX, 198, columnWidth, 108)
 	setRect(UI.FloatButton, rightX, 200, math.floor((columnWidth - 20) / 3), 32)
 	setRect(UI.SpeedButton, rightX + math.floor((columnWidth - 20) / 3) + 10, 200, math.floor((columnWidth - 20) / 3), 32)
 	setRect(UI.InfiniteJumpButton, rightX + (math.floor((columnWidth - 20) / 3) * 2) + 20, 200, columnWidth - (math.floor((columnWidth - 20) / 3) * 2) - 20, 32)
+	setRect(UI.BoulderLevelFarmLabel, rightX, 250, columnWidth, 16)
+	setRect(UI.BoulderLevelDropdownButton, rightX, 274, halfWidth, 34)
+	setRect(UI.BoulderLevelFarmButton, rightX + halfWidth + 10, 274, halfWidth, 34)
+	setRect(UI.BoulderLevelDropdownList, rightX, 316, columnWidth, 96)
 
-	setRect(GearShopLabel, rightX, 250, columnWidth, 16)
-	setRect(BombDropdownButton, rightX, 274, columnWidth, 34)
-	setRect(UI.BuyAllBombButton, rightX, 316, halfWidth, 34)
-	setRect(BuyBombButton, rightX + halfWidth + 10, 316, halfWidth, 34)
-	setRect(BombDropdownList, rightX, 358, columnWidth, 96)
-	setRect(StatusLabel, rightX, 462, columnWidth, 40)
+	setRect(GearShopLabel, rightX, 424, columnWidth, 16)
+	setRect(BombDropdownButton, rightX, 448, columnWidth, 34)
+	setRect(UI.BuyAllBombButton, rightX, 490, halfWidth, 34)
+	setRect(BuyBombButton, rightX + halfWidth + 10, 490, halfWidth, 34)
+	setRect(BombDropdownList, rightX, 532, columnWidth, 96)
+	setRect(UI.RadarShopLabel, rightX, 642, columnWidth, 16)
+	setRect(UI.RadarDropdownButton, rightX, 666, columnWidth, 34)
+	setRect(UI.BuyAllRadarButton, rightX, 708, halfWidth, 34)
+	setRect(UI.BuyRadarButton, rightX + halfWidth + 10, 708, halfWidth, 34)
+	setRect(UI.RadarDropdownList, rightX, 750, columnWidth, 96)
+	setRect(StatusLabel, rightX, 854, columnWidth, 40)
+	State.ApplyContentDensity(UI.IsMobile and 0.82 or 0.88, UI.IsMobile and 0.86 or 0.9, HORIZONTAL_CONTENT_HEIGHT)
 end
 
 local function getCurrentMainPixelSize()
@@ -1858,7 +2237,7 @@ local function applyResponsiveLayout(centerMobile)
 	local compactPortrait = mobile and viewport.X < 480 and viewport.X <= viewport.Y
 	local horizontalLayout = not compactPortrait
 	local headerHeight = mobile and MOBILE_HEADER_HEIGHT or DESKTOP_HEADER_HEIGHT
-	local edgeMargin = mobile and 8 or 6
+	local edgeMargin = mobile and 10 or 8
 	local safeWidth = math.max(1, viewport.X - (edgeMargin * 2))
 	local safeHeight = math.max(headerHeight, viewport.Y - (edgeMargin * 2))
 	local width
@@ -1866,18 +2245,18 @@ local function applyResponsiveLayout(centerMobile)
 	local collapsedWidth
 
 	if horizontalLayout then
-		local minimumWidth = mobileLandscape and 600 or 640
-		local minimumHeight = math.min(headerHeight + (mobile and 120 or 200), safeHeight)
-		width = math.min(820, math.max(minimumWidth, viewport.X - 36))
+		local minimumWidth = mobile and (mobileLandscape and 540 or 600) or 620
+		local minimumHeight = math.min(headerHeight + (mobile and 110 or 180), safeHeight)
+		width = math.min(mobile and 720 or 760, math.max(minimumWidth, viewport.X - (mobile and 28 or 72)))
 		width = math.max(math.min(minimumWidth, safeWidth), math.min(width, safeWidth))
-		height = math.min(headerHeight + HORIZONTAL_CONTENT_HEIGHT, math.max(headerHeight + 200, viewport.Y - 16))
+		height = math.min(headerHeight + HORIZONTAL_CONTENT_HEIGHT, math.max(minimumHeight, mobile and math.floor(viewport.Y * (mobileLandscape and 0.82 or 0.78)) or math.min(viewport.Y - 32, headerHeight + 760)))
 		height = math.max(minimumHeight, math.min(height, safeHeight))
 	else
 		local minimumWidth = math.min(260, safeWidth)
-		local minimumHeight = math.min(headerHeight + 120, safeHeight)
-		width = math.min(360, math.max(220, viewport.X - 16))
+		local minimumHeight = math.min(headerHeight + 100, safeHeight)
+		width = math.min(mobile and 330 or 350, math.max(220, viewport.X - (mobile and 28 or 24)))
 		width = math.max(minimumWidth, math.min(width, safeWidth))
-		height = math.min(headerHeight + CONTENT_HEIGHT, math.max(headerHeight + 110, viewport.Y - 16))
+		height = math.min(headerHeight + CONTENT_HEIGHT, math.max(minimumHeight, mobile and math.floor(viewport.Y * 0.74) or math.min(viewport.Y - 32, headerHeight + 780)))
 		height = math.max(minimumHeight, math.min(height, safeHeight))
 	end
 	collapsedWidth = math.min(width, math.max(260, math.min(mobile and MOBILE_COLLAPSED_WIDTH or DESKTOP_COLLAPSED_WIDTH, safeWidth)))
@@ -1892,24 +2271,26 @@ local function applyResponsiveLayout(centerMobile)
 	Header.Size = UDim2.new(1, 0, 0, headerHeight)
 	Content.Position = UDim2.new(0, 0, 0, headerHeight)
 	Content.Size = UDim2.new(1, 0, 1, -headerHeight)
-	Content.ScrollBarThickness = mobile and 7 or 4
-	BombDropdownList.ScrollBarThickness = mobile and 7 or 4
-	UI.RuneDropdownList.ScrollBarThickness = mobile and 7 or 4
-	UI.DigBoulderDropdownList.ScrollBarThickness = mobile and 7 or 4
-	PlayerDropdownList.ScrollBarThickness = mobile and 7 or 4
-	BoulderDropdownList.ScrollBarThickness = mobile and 7 or 4
+	Content.ScrollBarThickness = mobile and 5 or 4
+	BombDropdownList.ScrollBarThickness = mobile and 5 or 4
+	UI.RadarDropdownList.ScrollBarThickness = mobile and 5 or 4
+	UI.RuneDropdownList.ScrollBarThickness = mobile and 5 or 4
+	UI.DigBoulderDropdownList.ScrollBarThickness = mobile and 5 or 4
+	UI.BoulderLevelDropdownList.ScrollBarThickness = mobile and 5 or 4
+	PlayerDropdownList.ScrollBarThickness = mobile and 5 or 4
+	BoulderDropdownList.ScrollBarThickness = mobile and 5 or 4
 
-	local headerButtonWidth = mobile and 40 or 34
-	local headerButtonHeight = mobile and 32 or 28
-	local edgePadding = mobile and 7 or 10
-	local headerGap = mobile and 7 or 8
+	local headerButtonWidth = mobile and 34 or 30
+	local headerButtonHeight = mobile and 28 or 26
+	local edgePadding = mobile and 7 or 9
+	local headerGap = mobile and 6 or 7
 
 	CloseButton.Position = UDim2.new(1, -edgePadding, 0.5, 0)
 	CloseButton.Size = UDim2.new(0, headerButtonWidth, 0, headerButtonHeight)
 	CollapseButton.Position = UDim2.new(1, -(edgePadding + headerButtonWidth + headerGap), 0.5, 0)
 	CollapseButton.Size = UDim2.new(0, headerButtonWidth, 0, headerButtonHeight)
 	HeaderTitle.Size = UDim2.new(1, -(edgePadding + (headerButtonWidth * 2) + headerGap + 16), 1, 0)
-	HeaderTitle.TextSize = mobile and 16 or 17
+	HeaderTitle.TextSize = mobile and 14 or 15
 
 	if horizontalLayout then
 		applyHorizontalControlsLayout(width)
@@ -2333,7 +2714,9 @@ local function setCollapsed(collapsed, persist)
 		BoulderDropdownList.Visible = false
 		UI.RuneDropdownList.Visible = false
 		UI.DigBoulderDropdownList.Visible = false
+		UI.BoulderLevelDropdownList.Visible = false
 		BombDropdownList.Visible = false
+		UI.RadarDropdownList.Visible = false
 	end
 
 	clampMainToViewport(getCurrentMainPixelSize())
@@ -2685,18 +3068,37 @@ end
 
 function State.GetDigTool()
 	local character = LocalPlayer and LocalPlayer.Character
+	local backpack = LocalPlayer and LocalPlayer:FindFirstChildOfClass("Backpack")
+	if State.BoulderLevelFarmEnabled then
+		local nameSet = State.GetPickaxeShopNameSet and State.GetPickaxeShopNameSet()
+		if character then
+			for _, child in ipairs(character:GetChildren()) do
+				if State.IsPickaxeShopTool and State.IsPickaxeShopTool(child, nameSet) then
+					return child
+				end
+			end
+		end
+
+		if backpack then
+			for _, child in ipairs(backpack:GetChildren()) do
+				if State.IsPickaxeShopTool and State.IsPickaxeShopTool(child, nameSet) then
+					return child
+				end
+			end
+		end
+	end
+
 	if character then
 		for _, child in ipairs(character:GetChildren()) do
-			if child:IsA("Tool") and not child.Name:find("Rune", 1, true) and not child.Name:find("Bomb", 1, true) and child.Name ~= "Push" then
+			if State.IsDigTool and State.IsDigTool(child, true) then
 				return child
 			end
 		end
 	end
 
-	local backpack = LocalPlayer and LocalPlayer:FindFirstChildOfClass("Backpack")
 	if backpack then
 		for _, child in ipairs(backpack:GetChildren()) do
-			if child:IsA("Tool") and not child.Name:find("[", 1, true) and not child.Name:find("Rune", 1, true) and not child.Name:find("Bomb", 1, true) and child.Name ~= "Push" then
+			if State.IsDigTool and State.IsDigTool(child) then
 				return child
 			end
 		end
@@ -2737,6 +3139,118 @@ function State.GetDigBoulderDisplayName(target)
 	local targets = getDigBoulderTargets()
 	local labels = getBoulderOptionLabels(targets)
 	return labels[target] or getBoulderAttributeDisplay(target) or target.Name
+end
+
+function State.CanonicalShopToolName(value)
+	return (tostring(value or ""):lower():gsub("[%s%p_]+", ""))
+end
+
+function State.AddPickaxeShopName(nameSet, value)
+	local text = tostring(value or ""):match("^%s*(.-)%s*$") or ""
+	if text == "" then
+		return
+	end
+
+	local lowerText = text:lower()
+	if lowerText == "equip"
+		or lowerText == "pickaxe shop"
+		or lowerText == "common"
+		or lowerText == "uncommon"
+		or lowerText == "rare"
+		or lowerText == "epic"
+		or lowerText == "legendary"
+		or lowerText == "mythic"
+		or lowerText:find("power", 1, true)
+		or lowerText:find("mine size", 1, true) then
+		return
+	end
+
+	nameSet[State.CanonicalShopToolName(text)] = true
+end
+
+function State.CollectPickaxeShopNamesFromTable(nameSet, value, depth)
+	if type(value) ~= "table" or (depth or 0) > 4 then
+		return
+	end
+
+	for key, entry in pairs(value) do
+		if type(entry) == "table" then
+			State.AddPickaxeShopName(nameSet, key)
+			State.AddPickaxeShopName(nameSet, entry.DisplayName or entry.displayName or entry.Name or entry.name or entry.ItemName or entry.itemName)
+			State.CollectPickaxeShopNamesFromTable(nameSet, entry, (depth or 0) + 1)
+		elseif type(key) == "string" and (type(entry) == "number" or type(entry) == "boolean") then
+			State.AddPickaxeShopName(nameSet, key)
+		end
+	end
+end
+
+function State.GetPickaxeShopNameSet()
+	if State.PickaxeShopNameSet and (next(State.PickaxeShopNameSet) ~= nil or os.clock() - (State.PickaxeShopNameSetTick or 0) < 10) then
+		return State.PickaxeShopNameSet
+	end
+
+	local nameSet = {}
+	for _, root in ipairs({ ReplicatedStorage:FindFirstChild("Modules"), ReplicatedStorage:FindFirstChild("SharedModules"), ReplicatedStorage }) do
+		if root then
+			for _, object in ipairs(root:GetDescendants()) do
+				if object:IsA("ModuleScript") and tostring(object.Name or ""):lower():find("pickaxe", 1, true) then
+					local ok, result = pcall(require, object)
+					if ok then
+						State.CollectPickaxeShopNamesFromTable(nameSet, result, 0)
+					end
+				end
+			end
+		end
+	end
+
+	local playerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+	if playerGui then
+		for _, object in ipairs(playerGui:GetDescendants()) do
+			if tostring(object:GetFullName()):lower():find("pickaxe", 1, true)
+				and (object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox")) then
+				local ok, text = pcall(function()
+					return object.Text
+				end)
+				if ok then
+					State.AddPickaxeShopName(nameSet, text)
+				end
+			end
+		end
+	end
+
+	State.PickaxeShopNameSet = nameSet
+	State.PickaxeShopNameSetTick = os.clock()
+	return nameSet
+end
+
+function State.IsDigTool(tool, allowBracket)
+	if not (tool and tool:IsA("Tool")) then
+		return false
+	end
+
+	local name = tostring(tool.Name or "")
+	return (allowBracket == true or not name:find("[", 1, true))
+		and not name:find("Rune", 1, true)
+		and not name:find("Bomb", 1, true)
+		and name ~= "Push"
+end
+
+function State.IsPickaxeShopTool(tool, nameSet)
+	if not State.IsDigTool(tool) then
+		return false
+	end
+
+	if nameSet and nameSet[State.CanonicalShopToolName(tool.Name)] then
+		return true
+	end
+
+	for _, attributeName in ipairs({ "Power", "MineSize", "Mine Size", "Pickaxe", "PickaxeId", "Rarity" }) do
+		if tool:GetAttribute(attributeName) ~= nil then
+			return true
+		end
+	end
+
+	return false
 end
 
 function State.GetBoulderDigName(target)
@@ -3048,7 +3562,7 @@ function State.RefreshDigBoulderDropdownOptions()
 	end
 
 	local targets = getDigBoulderTargets()
-	local optionHeight = UI.IsMobile and 36 or 28
+	local optionHeight = UI.IsMobile and 32 or 26
 	local optionStep = optionHeight + 4
 
 	if #targets == 0 then
@@ -3102,6 +3616,567 @@ function State.RefreshDigBoulderDropdownOptions()
 	State.UpdateDigBoulderDropdownText()
 end
 
+function State.GetBoulderLevelName(target)
+	local rawLevel = getBoulderAttributeDisplay(target)
+	if not rawLevel and target then
+		local targetName = tostring(target.Name or ""):lower()
+		for _, levelName in ipairs({ "Celestial Apex", "Celestial", "Divine", "Secret", "Mythic", "Legendary", "Epic", "Rare", "Uncommon", "Common" }) do
+			if targetName:find(levelName:lower(), 1, true) then
+				rawLevel = levelName
+				break
+			end
+		end
+	end
+
+	local text = tostring(rawLevel or "Unknown"):match("^%s*(.-)%s*$") or "Unknown"
+	return text ~= "" and text or "Unknown"
+end
+
+function State.GetBoulderLevelRankText(level)
+	local text = tostring(level or ""):lower()
+	for _, entry in ipairs({
+		{ "celestial apex", 100 },
+		{ "celestial", 95 },
+		{ "divine", 90 },
+		{ "secret", 85 },
+		{ "mythic", 80 },
+		{ "legendary", 70 },
+		{ "epic", 60 },
+		{ "rare", 50 },
+		{ "uncommon", 40 },
+		{ "common", 30 }
+	}) do
+		if text:find(entry[1], 1, true) then
+			return entry[2]
+		end
+	end
+
+	return tonumber(text:match("%d+")) or 0
+end
+
+function State.GetBoulderLevelOptions()
+	local counts = {}
+	local levels = {}
+	for _, target in ipairs(getDigBoulderTargets()) do
+		local level = State.GetBoulderLevelName(target)
+		if not counts[level] then
+			table.insert(levels, level)
+		end
+		counts[level] = (counts[level] or 0) + 1
+	end
+
+	table.sort(levels, function(left, right)
+		local leftRank = State.GetBoulderLevelRankText(left)
+		local rightRank = State.GetBoulderLevelRankText(right)
+		if leftRank ~= rightRank then
+			return leftRank > rightRank
+		end
+		return tostring(left):lower() < tostring(right):lower()
+	end)
+
+	table.insert(levels, 1, "All")
+	counts.All = #getDigBoulderTargets()
+	return levels, counts
+end
+
+function State.GetSelectedBoulderLevelNames()
+	State.SelectedBoulderLevels = State.SelectedBoulderLevels or {}
+	if State.SelectedBoulderLevels.All then
+		return { "All" }
+	end
+
+	local levels = {}
+	for levelName, selected in pairs(State.SelectedBoulderLevels) do
+		if selected and tostring(levelName) ~= "All" then
+			table.insert(levels, tostring(levelName))
+		end
+	end
+
+	table.sort(levels, function(left, right)
+		local leftRank = State.GetBoulderLevelRankText(left)
+		local rightRank = State.GetBoulderLevelRankText(right)
+		if leftRank ~= rightRank then
+			return leftRank > rightRank
+		end
+		return tostring(left):lower() < tostring(right):lower()
+	end)
+
+	if #levels == 0 then
+		State.SelectedBoulderLevels.All = true
+		return { "All" }
+	end
+	return levels
+end
+
+function State.GetBoulderLevelSummary()
+	local levels = State.GetSelectedBoulderLevelNames()
+	if #levels == 1 then
+		return levels[1]
+	end
+	if #levels == 2 then
+		return levels[1] .. ", " .. levels[2]
+	end
+	return tostring(#levels) .. " selected"
+end
+
+function State.UpdateBoulderLevelDropdownText()
+	if UI.BoulderLevelDropdownButton then
+		if not State.IsLockedScriptUnlocked() then
+			UI.BoulderLevelDropdownButton.Text = "Level: LOCKED"
+			return
+		end
+		UI.BoulderLevelDropdownButton.Text = "Level: " .. State.GetBoulderLevelSummary()
+	end
+end
+
+function State.UpdateBoulderLevelFarmButton()
+	if not UI.BoulderLevelFarmButton then
+		return
+	end
+
+	if not State.IsLockedScriptUnlocked() then
+		UI.BoulderLevelFarmButton.Text = "LEVEL LOCKED"
+		UI.BoulderLevelFarmButton.BackgroundColor3 = Theme.ButtonDark
+		return
+	end
+
+	if State.BoulderLevelFarmEnabled then
+		UI.BoulderLevelFarmButton.Text = "LEVEL FARM ON"
+		UI.BoulderLevelFarmButton.BackgroundColor3 = Theme.Good
+	else
+		UI.BoulderLevelFarmButton.Text = "LEVEL FARM OFF"
+		UI.BoulderLevelFarmButton.BackgroundColor3 = Theme.ButtonDark
+	end
+end
+
+function State.SetBoulderLevelFarmLevel(level, persist, selected)
+	if not State.IsLockedScriptUnlocked() then
+		return State.ShowLockedScriptMessage()
+	end
+
+	level = tostring(level or "All"):match("^%s*(.-)%s*$") or "All"
+	if level == "" then
+		level = "All"
+	end
+
+	State.SelectedBoulderLevels = State.SelectedBoulderLevels or {}
+	if level == "All" then
+		State.SelectedBoulderLevels = { All = true }
+	elseif selected == nil then
+		State.SelectedBoulderLevels[level] = not State.SelectedBoulderLevels[level] or nil
+		State.SelectedBoulderLevels.All = nil
+	elseif selected == true then
+		State.SelectedBoulderLevels[level] = true
+		State.SelectedBoulderLevels.All = nil
+	else
+		State.SelectedBoulderLevels[level] = nil
+	end
+
+	if next(State.SelectedBoulderLevels) == nil then
+		State.SelectedBoulderLevels.All = true
+	end
+
+	State.SelectedBoulderLevel = State.GetBoulderLevelSummary()
+	Config.BoulderLevelFarmLevel = State.SelectedBoulderLevel
+	Config.BoulderLevelFarmLevels = State.GetSelectedBoulderLevelNames()
+	State.UpdateBoulderLevelDropdownText()
+	if persist ~= false then
+		State.SaveConfig()
+	end
+	return Config.BoulderLevelFarmLevels
+end
+
+function State.RefreshBoulderLevelDropdownOptions()
+	for _, child in ipairs(UI.BoulderLevelDropdownList:GetChildren()) do
+		if child.Name == "BoulderLevelOption" or child.Name == "BoulderLevelEmptyOption" then
+			child:Destroy()
+		end
+	end
+
+	if not State.IsLockedScriptUnlocked() then
+		create("TextLabel", {
+			Name = "BoulderLevelEmptyOption",
+			Size = UDim2.new(1, -12, 0, 26),
+			BackgroundTransparency = 1,
+			Text = "Locked",
+			TextColor3 = Theme.Bad,
+			TextSize = 12,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 8
+		}, UI.BoulderLevelDropdownList)
+		UI.BoulderLevelDropdownList.CanvasSize = UDim2.new(0, 0, 0, 38)
+		State.UpdateBoulderLevelDropdownText()
+		return
+	end
+
+	local levels, counts = State.GetBoulderLevelOptions()
+	local optionHeight = UI.IsMobile and 32 or 26
+	local optionStep = optionHeight + 4
+	if #levels <= 1 then
+		create("TextLabel", {
+			Name = "BoulderLevelEmptyOption",
+			Size = UDim2.new(1, -12, 0, optionHeight),
+			BackgroundTransparency = 1,
+			Text = "No boulder levels found",
+			TextColor3 = Theme.Muted,
+			TextSize = 13,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 8
+		}, UI.BoulderLevelDropdownList)
+		UI.BoulderLevelDropdownList.CanvasSize = UDim2.new(0, 0, 0, optionHeight + 12)
+		State.UpdateBoulderLevelDropdownText()
+		return
+	end
+
+	for index, level in ipairs(levels) do
+		local selected = State.SelectedBoulderLevels and State.SelectedBoulderLevels[level] == true
+		local countText = counts[level] and (" x" .. tostring(counts[level])) or ""
+		local option = create("TextButton", {
+			Name = "BoulderLevelOption",
+			LayoutOrder = index,
+			Size = UDim2.new(1, -12, 0, optionHeight),
+			BackgroundColor3 = selected and Theme.Button or Theme.ButtonDark,
+			BorderSizePixel = 0,
+			Text = (selected and "[x] " or "[ ] ") .. tostring(level) .. countText,
+			TextColor3 = Theme.Text,
+			TextSize = 13,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			ZIndex = 8
+		}, UI.BoulderLevelDropdownList)
+		styleSurface(option, 5, Theme.Accent)
+		create("UIPadding", {
+			PaddingLeft = UDim.new(0, 8),
+			PaddingRight = UDim.new(0, 8)
+		}, option)
+
+		connect(option.Activated, function()
+			State.SetBoulderLevelFarmLevel(level)
+			State.RefreshBoulderLevelDropdownOptions()
+		end)
+	end
+
+	UI.BoulderLevelDropdownList.CanvasSize = UDim2.new(0, 0, 0, (#levels * optionStep) + 12)
+	State.UpdateBoulderLevelDropdownText()
+end
+
+function State.IsBoulderLevelFarmMatch(target)
+	if not target or not target.Parent then
+		return false
+	end
+
+	if not State.SelectedBoulderLevels or State.SelectedBoulderLevels.All then
+		return true
+	end
+
+	return State.SelectedBoulderLevels[State.GetBoulderLevelName(target)] == true
+end
+
+function State.GetNextBoulderLevelFarmTarget()
+	for _, target in ipairs(getDigBoulderTargets()) do
+		if State.IsBoulderLevelFarmMatch(target) then
+			return target
+		end
+	end
+	return nil
+end
+
+function State.TweenBoulderLevelFarmToPosition(position)
+	if not State.BoulderLevelFarmEnabled then
+		return false
+	end
+
+	local _, root, humanoid = getCharacterParts(LocalPlayer)
+	if not root or not position then
+		return false
+	end
+	if humanoid then
+		humanoid.Sit = false
+	end
+
+	local distance = (root.Position - position).Magnitude
+	local duration = math.max(0.05, distance / math.max(1, tonumber(Config.BoulderLevelFarmSpeed) or 500))
+	local tween = game:GetService("TweenService"):Create(
+		root,
+		TweenInfo.new(duration, Enum.EasingStyle.Linear),
+		{ CFrame = CFrame.new(position, position + root.CFrame.LookVector) }
+	)
+
+	State.BoulderLevelFarmTween = tween
+	tween:Play()
+	local playbackState = tween.Completed:Wait()
+	if State.BoulderLevelFarmTween == tween then
+		State.BoulderLevelFarmTween = nil
+	end
+	return State.BoulderLevelFarmEnabled and playbackState == Enum.PlaybackState.Completed
+end
+
+function State.PrimeBoulderLevelFarmRoute()
+	if State.BoulderLevelFarmPrimed then
+		return true
+	end
+
+	local _, root = getCharacterParts(LocalPlayer)
+	if not root then
+		return false
+	end
+	if not State.TweenBoulderLevelFarmToPosition(root.Position + Vector3.new(0, Config.BoulderLevelFarmUpDistance or 300, 0)) then
+		return false
+	end
+
+	_, root = getCharacterParts(LocalPlayer)
+	if not root then
+		return false
+	end
+	if not State.TweenBoulderLevelFarmToPosition(root.Position + (root.CFrame.LookVector * (Config.BoulderLevelFarmForwardDistance or 1800))) then
+		return false
+	end
+
+	State.BoulderLevelFarmPrimed = true
+	return true
+end
+
+function State.TweenBoulderLevelFarmToTarget(target)
+	if not State.PrimeBoulderLevelFarmRoute() then
+		return false
+	end
+
+	local position = State.GetBoulderDigPosition(target)
+	if not position then
+		local cframe = getBoulderTargetCFrame(target)
+		position = cframe and cframe.Position or nil
+	end
+	return position and State.TweenBoulderLevelFarmToPosition(position + Vector3.new(0, 3, 0)) or false
+end
+
+function State.RunBoulderLevelFarmLoop()
+	if State.BoulderLevelFarmThreadRunning then
+		return
+	end
+
+	State.BoulderLevelFarmThreadRunning = true
+	task.spawn(function()
+		while State.BoulderLevelFarmEnabled do
+			local target = State.GetNextBoulderLevelFarmTarget()
+			if target then
+				State.BoulderLevelFarmTarget = target
+				State.SetDigBoulderTarget(target, false)
+				setStatus("Tween to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
+				if State.TweenBoulderLevelFarmToTarget(target) and State.BoulderLevelFarmEnabled and target.Parent and State.GetSelectedDigBoulderTarget() == target then
+					State.SetDigReplayEnabled(true, false)
+					setStatus("Level farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
+					while State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() == target and target.Parent and State.IsBoulderLevelFarmMatch(target) do
+						task.wait(0.2)
+					end
+					State.SetDigReplayEnabled(false, false)
+				end
+			else
+				State.SetDigReplayEnabled(false, false)
+				setStatus("No boulder level: " .. State.GetBoulderLevelSummary(), Theme.Muted)
+				task.wait(1)
+			end
+			task.wait(0.1)
+		end
+
+		State.SetDigReplayEnabled(false, false)
+		State.BoulderLevelFarmTarget = nil
+		State.BoulderLevelFarmThreadRunning = false
+	end)
+end
+
+function State.SetBoulderLevelFarmEnabled(enabled, persist)
+	if enabled == true and not State.IsLockedScriptUnlocked() then
+		State.BoulderLevelFarmEnabled = false
+		State.UpdateBoulderLevelFarmButton()
+		return State.ShowLockedScriptMessage()
+	end
+
+	State.BoulderLevelFarmEnabled = enabled == true
+	if not State.BoulderLevelFarmEnabled then
+		if State.BoulderLevelFarmTween then
+			pcall(function()
+				State.BoulderLevelFarmTween:Cancel()
+			end)
+			State.BoulderLevelFarmTween = nil
+		end
+		State.SetDigReplayEnabled(false, false)
+	else
+		if State.PlayerTeleporting then
+			setPlayerTeleporting(false, false)
+		end
+		if State.BoulderTeleporting then
+			setBoulderTeleporting(false, false)
+		end
+		State.BoulderLevelFarmPrimed = false
+		State.RunBoulderLevelFarmLoop()
+	end
+
+	State.UpdateBoulderLevelFarmButton()
+	setStatus(State.BoulderLevelFarmEnabled and ("Boulder level farm ON -> " .. State.GetBoulderLevelSummary()) or "Boulder level farm OFF", State.BoulderLevelFarmEnabled and Theme.Good or Theme.Muted)
+	if persist ~= false then
+		State.SaveConfig()
+	end
+	return State.BoulderLevelFarmEnabled
+end
+
+function State.UpdateBoulderHopButton()
+	if not UI.BoulderHopButton then
+		return
+	end
+
+	if not State.IsLockedScriptUnlocked() then
+		UI.BoulderHopButton.Text = "HOP LOCK"
+		UI.BoulderHopButton.BackgroundColor3 = Theme.ButtonDark
+		return
+	end
+
+	if State.BoulderHopEnabled then
+		UI.BoulderHopButton.Text = "HOP ON"
+		UI.BoulderHopButton.BackgroundColor3 = Theme.Good
+	else
+		UI.BoulderHopButton.Text = "HOP OFF"
+		UI.BoulderHopButton.BackgroundColor3 = Theme.ButtonDark
+	end
+end
+
+function State.SetBoulderHopEnabled(enabled, persist)
+	if enabled == true and not State.IsLockedScriptUnlocked() then
+		State.BoulderHopEnabled = false
+		State.BoulderHopTeleporting = false
+		State.BoulderHopNoTargetSince = nil
+		State.UpdateBoulderHopButton()
+		return State.ShowLockedScriptMessage()
+	end
+
+	State.BoulderHopEnabled = enabled == true
+	State.BoulderHopTeleporting = false
+	State.BoulderHopNoTargetSince = nil
+	State.LastBoulderHopTick = 0
+	State.UpdateBoulderHopButton()
+	setStatus(State.BoulderHopEnabled and "Boulder empty hop ON" or "Boulder empty hop OFF", State.BoulderHopEnabled and Theme.Good or Theme.Muted)
+	if persist ~= false then
+		State.SaveConfig()
+	end
+	return State.BoulderHopEnabled
+end
+
+function State.HopServer(sort)
+	if not State.IsLockedScriptUnlocked() then
+		return State.ShowLockedScriptMessage()
+	end
+
+	if State.BoulderHopTeleporting then
+		return false
+	end
+
+	local httprequest = http_request or request
+	if type(httprequest) ~= "function" and type(syn) == "table" then
+		httprequest = syn.request
+	end
+	if type(httprequest) ~= "function" and type(http) == "table" then
+		httprequest = http.request
+	end
+	if type(httprequest) ~= "function" then
+		setStatus("http_request not found", Theme.Bad)
+		return false
+	end
+
+	State.BoulderHopTeleporting = true
+	local placeId = game.PlaceId
+	local ok, requestResult = pcall(function()
+		return httprequest({
+			Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=%s&limit=100&excludeFullGames=true", placeId, tostring(sort or Config.BoulderHopSort or "Asc"))
+		})
+	end)
+	if not ok then
+		State.BoulderHopTeleporting = false
+		setStatus("Server hop request failed", Theme.Bad)
+		return false
+	end
+
+	local bodyText = type(requestResult) == "table" and (requestResult.Body or requestResult.body) or tostring(requestResult or "")
+	ok, requestResult = pcall(function()
+		return game:GetService("HttpService"):JSONDecode(bodyText)
+	end)
+	if not ok or type(requestResult) ~= "table" or type(requestResult.data) ~= "table" then
+		State.BoulderHopTeleporting = false
+		setStatus("Server hop decode failed", Theme.Bad)
+		return false
+	end
+
+	for _, server in next, requestResult.data do
+		if type(server) == "table"
+			and tonumber(server.playing)
+			and tonumber(server.maxPlayers)
+			and server.playing < server.maxPlayers
+			and server.id ~= game.JobId then
+			task.wait(0.2)
+			ok = pcall(function()
+				game:GetService("TeleportService"):TeleportToPlaceInstance(placeId, server.id, LocalPlayer)
+			end)
+			if ok then
+				return true
+			end
+		end
+	end
+
+	State.BoulderHopTeleporting = false
+	setStatus("No hop server found", Theme.Muted)
+	return false
+end
+
+function State.TryBoulderEmptyHop()
+	if not State.BoulderHopEnabled or State.BoulderHopTeleporting then
+		return
+	end
+	if not getBouldersFolder() then
+		State.BoulderHopNoTargetSince = nil
+		return
+	end
+
+	if #getDigBoulderTargets() > 0 then
+		State.BoulderHopNoTargetSince = nil
+		return
+	end
+
+	local now = os.clock()
+	if not State.BoulderHopNoTargetSince then
+		State.BoulderHopNoTargetSince = now
+		setStatus("No boulder found, waiting before hop", Theme.Muted)
+		return
+	end
+	if now - State.BoulderHopNoTargetSince < (Config.BoulderHopEmptyDelay or 2) then
+		return
+	end
+
+	setStatus("Boulders empty, hopping server", Theme.Good)
+	task.spawn(function()
+		local ok, result = pcall(function()
+			return State.HopServer(Config.BoulderHopSort or "Asc")
+		end)
+		if not ok or result ~= true then
+			State.BoulderHopTeleporting = false
+			State.BoulderHopNoTargetSince = os.clock()
+		end
+	end)
+end
+
+function State.BoulderHopHeartbeat()
+	if not State.BoulderHopEnabled then
+		return
+	end
+
+	local now = os.clock()
+	if now - State.LastBoulderHopTick < (Config.BoulderHopInterval or 1) then
+		return
+	end
+	State.LastBoulderHopTick = now
+	State.TryBoulderEmptyHop()
+end
+
 local function getSelectedBombNames()
 	local names = {}
 	for itemName, selected in pairs(State.SelectedBombItems) do
@@ -3131,6 +4206,38 @@ local function setBombSelected(itemName, selected)
 	State.SaveGearShopConfig()
 	if updateBombDropdownText then
 		updateBombDropdownText()
+	end
+end
+
+function State.GetSelectedRadarNames()
+	local names = {}
+	for itemName, selected in pairs(State.SelectedRadarItems or {}) do
+		if selected then
+			table.insert(names, itemName)
+		end
+	end
+	table.sort(names)
+	return names
+end
+
+function State.SyncRadarSelectionConfig()
+	local names = State.GetSelectedRadarNames()
+	Config.RadarItemNames = names
+	Config.RadarItemName = names[1]
+	return names
+end
+
+function State.SetRadarSelected(itemName, selected)
+	itemName = tostring(itemName or "")
+	if itemName == "" then
+		return
+	end
+
+	State.SelectedRadarItems[itemName] = selected == true or nil
+	State.SyncRadarSelectionConfig()
+	State.SaveGearShopConfig()
+	if State.UpdateRadarDropdownText then
+		State.UpdateRadarDropdownText()
 	end
 end
 
@@ -3454,6 +4561,373 @@ function State.GetGearShopPurchaseItems(forceRefresh)
 	return getSelectedBombStockObjects(forceRefresh)
 end
 
+function State.GetRadarShopConfig()
+	if State.RadarShopConfig then
+		return State.RadarShopConfig
+	end
+
+	local modules = ReplicatedStorage:FindFirstChild("Modules")
+	local configModule = modules and modules:FindFirstChild("RadarShopConfig")
+	if not (configModule and configModule:IsA("ModuleScript")) then
+		return nil
+	end
+
+	local ok, result = pcall(require, configModule)
+	if ok and type(result) == "table" then
+		State.RadarShopConfig = result
+		return State.RadarShopConfig
+	end
+
+	return nil
+end
+
+function State.GetRadarShopStock(forceRefresh)
+	local now = os.clock()
+	if not forceRefresh and State.LastRadarShopStockQuery > 0 and State.RadarShopStockCache and now - State.LastRadarShopStockQuery < (Config.RadarStockRefreshInterval or Config.BombStockRefreshInterval or 1) then
+		return State.RadarShopStockCache
+	end
+
+	local queryRemote = Remotes and Remotes:FindFirstChild("RadarShopQuery")
+	if queryRemote and queryRemote:IsA("RemoteFunction") then
+		local ok, result = pcall(function()
+			return queryRemote:InvokeServer()
+		end)
+
+		if ok and type(result) == "table" and type(result.stock) == "table" then
+			State.RadarShopStockCache = result.stock
+			State.LastRadarShopStockQuery = now
+			return State.RadarShopStockCache
+		end
+	end
+
+	return State.RadarShopStockCache or {}
+end
+
+function State.GetRadarDisplayName(itemName)
+	local config = State.GetRadarShopConfig()
+	local radarConfig = config and config.RADARS and config.RADARS[itemName]
+	return (radarConfig and radarConfig.displayName) or itemName
+end
+
+function State.SortRadarItems(radarItems)
+	table.sort(radarItems, function(left, right)
+		if left.Price and right.Price and left.Price ~= right.Price then
+			return left.Price < right.Price
+		end
+
+		return tostring(left.DisplayName or left.Name):lower() < tostring(right.DisplayName or right.Name):lower()
+	end)
+	return radarItems
+end
+
+function State.GetRadarShopUiHolder()
+	local ui = ReplicatedStorage:FindFirstChild("UI")
+	local radarShop = ui and ui:FindFirstChild("RadarShop")
+	local main = radarShop and radarShop:FindFirstChild("Main")
+	local radarFrame = main and main:FindFirstChild("RadarFrame")
+	return radarFrame and radarFrame:FindFirstChild("Holder")
+end
+
+function State.GetRadarStockValueObjects(forceRefresh)
+	local radarItems = {}
+	local config = State.GetRadarShopConfig()
+	local stock = State.GetRadarShopStock(forceRefresh)
+
+	if config and type(config.RADARS) == "table" then
+		for itemName, itemConfig in pairs(config.RADARS) do
+			if itemConfig.enabled ~= false then
+				table.insert(radarItems, {
+					Name = itemName,
+					DisplayName = itemConfig.displayName or itemName,
+					Stock = tonumber(stock[itemName]) or 0,
+					Price = itemConfig.cashPrice,
+					Rarity = itemConfig.rarity
+				})
+			end
+		end
+
+		return State.SortRadarItems(radarItems)
+	end
+
+	local holder = State.GetRadarShopUiHolder()
+	if holder then
+		for _, item in ipairs(holder:GetChildren()) do
+			if item:IsA("CanvasGroup") and tostring(item.Name or ""):lower():find("radar", 1, true) then
+				local nameLabel = item:FindFirstChild("BombName", true)
+				local stockLabel = item:FindFirstChild("StockAmount", true)
+				table.insert(radarItems, {
+					Name = item.Name,
+					DisplayName = nameLabel and nameLabel.Text or item.Name,
+					Stock = stockLabel and parseNumber(stockLabel.Text) or nil
+				})
+			end
+		end
+	end
+
+	return State.SortRadarItems(radarItems)
+end
+
+function State.GetRadarStock(valueObject)
+	if type(valueObject) == "table" then
+		return valueObject.Stock, valueObject
+	end
+
+	if valueObject and valueObject:IsA("ValueBase") then
+		return tonumber(valueObject.Value) or 0, valueObject
+	end
+
+	return nil, valueObject
+end
+
+function State.GetSelectedRadarStockObjects(forceRefresh)
+	local selectedNames = State.GetSelectedRadarNames()
+	if #selectedNames == 0 then
+		return {}, "No radar selected"
+	end
+
+	local availableItems = State.GetRadarStockValueObjects(forceRefresh)
+	if #availableItems == 0 then
+		return {}, "Radar stock not found"
+	end
+
+	local selectedItems = {}
+	for _, selectedName in ipairs(selectedNames) do
+		for _, item in ipairs(availableItems) do
+			if item.Name == selectedName or item.DisplayName == selectedName then
+				table.insert(selectedItems, item)
+				break
+			end
+		end
+	end
+
+	if #selectedItems == 0 then
+		return selectedItems, "Selected radar not found"
+	end
+
+	return selectedItems
+end
+
+function State.GetRadarShopPurchaseItems(forceRefresh)
+	if State.RadarShopBuyAll then
+		local availableItems = State.GetRadarStockValueObjects(forceRefresh)
+		if #availableItems == 0 then
+			return {}, "Radar shop stock not found"
+		end
+		return availableItems
+	end
+
+	return State.GetSelectedRadarStockObjects(forceRefresh)
+end
+
+function State.UpdateRadarDropdownText()
+	if State.RadarShopBuyAll then
+		UI.RadarDropdownButton.Text = "Radar: Buy All"
+		return
+	end
+
+	local names = State.SyncRadarSelectionConfig()
+	if #names == 0 then
+		UI.RadarDropdownButton.Text = "Select Radar"
+	elseif #names == 1 then
+		UI.RadarDropdownButton.Text = "Radar: " .. State.GetRadarDisplayName(names[1])
+	else
+		UI.RadarDropdownButton.Text = ("Radar: %d selected"):format(#names)
+	end
+end
+
+function State.RefreshRadarDropdownOptions()
+	for _, child in ipairs(UI.RadarDropdownList:GetChildren()) do
+		if child.Name == "RadarOption" or child.Name == "RadarEmptyOption" then
+			child:Destroy()
+		end
+	end
+
+	local radarItems = State.GetRadarStockValueObjects(true)
+	local optionHeight = UI.IsMobile and 32 or 26
+	local optionStep = optionHeight + 4
+	if #radarItems == 0 then
+		create("TextLabel", {
+			Name = "RadarEmptyOption",
+			Size = UDim2.new(1, -12, 0, optionHeight),
+			BackgroundTransparency = 1,
+			Text = "No radar stock found",
+			TextColor3 = Theme.Muted,
+			TextSize = 13,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 8
+		}, UI.RadarDropdownList)
+		UI.RadarDropdownList.CanvasSize = UDim2.new(0, 0, 0, optionHeight + 12)
+		State.UpdateRadarDropdownText()
+		return
+	end
+
+	for index, item in ipairs(radarItems) do
+		local itemName = item.Name
+		local displayName = item.DisplayName or State.GetRadarDisplayName(itemName)
+		local selected = State.SelectedRadarItems[itemName] == true
+		local stock = State.GetRadarStock(item)
+		local stockText = stock ~= nil and (" | stock " .. tostring(stock)) or ""
+		local option = create("TextButton", {
+			Name = "RadarOption",
+			LayoutOrder = index,
+			Size = UDim2.new(1, -12, 0, optionHeight),
+			BackgroundColor3 = selected and Theme.Button or Theme.ButtonDark,
+			BorderSizePixel = 0,
+			Text = (selected and "[x] " or "[ ] ") .. displayName .. stockText,
+			TextColor3 = Theme.Text,
+			TextSize = 13,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			ZIndex = 8
+		}, UI.RadarDropdownList)
+		styleSurface(option, 5, Theme.Accent)
+		create("UIPadding", {
+			PaddingLeft = UDim.new(0, 8),
+			PaddingRight = UDim.new(0, 8)
+		}, option)
+
+		connect(option.Activated, function()
+			State.SetRadarSelected(itemName, not State.SelectedRadarItems[itemName])
+			State.RefreshRadarDropdownOptions()
+		end)
+	end
+
+	UI.RadarDropdownList.CanvasSize = UDim2.new(0, 0, 0, (#radarItems * optionStep) + 12)
+	State.UpdateRadarDropdownText()
+end
+
+function State.GetRadarPurchaseRemote()
+	return Remotes and Remotes:FindFirstChild("RadarBuyRequest")
+end
+
+function State.FireRadarPurchase(itemName)
+	local purchase = State.GetRadarPurchaseRemote()
+	if not purchase then
+		return false, "Radar purchase remote not found"
+	end
+
+	if purchase:IsA("RemoteEvent") then
+		return pcall(function()
+			purchase:FireServer(itemName)
+		end)
+	end
+
+	if purchase:IsA("RemoteFunction") then
+		local ok, result = pcall(function()
+			return purchase:InvokeServer(itemName)
+		end)
+		if not ok then
+			return false, result
+		end
+		if result == false then
+			return false, "Purchase rejected"
+		end
+		if type(result) == "table" and (result.ok == false or result.success == false) then
+			return false, result.message or result.error or "Purchase rejected"
+		end
+		return true, result
+	end
+
+	return false, "Unsupported radar purchase remote type: " .. tostring(purchase.ClassName)
+end
+
+function State.SetBuyRadarStatus(text, color, force)
+	if force or State.LastBuyRadarStatus ~= text then
+		State.LastBuyRadarStatus = text
+		setStatus(text, color)
+	end
+end
+
+function State.UpdateRadarShopBuyAllButton()
+	if State.RadarShopBuyAll and State.BuyingRadar then
+		UI.BuyAllRadarButton.Text = "Buy All Radar ON"
+		UI.BuyAllRadarButton.BackgroundColor3 = Theme.Good
+	else
+		UI.BuyAllRadarButton.Text = "Buy All Radar OFF"
+		UI.BuyAllRadarButton.BackgroundColor3 = Theme.ButtonDark
+	end
+end
+
+function State.SetRadarShopBuyAll(enabled, persist)
+	State.RadarShopBuyAll = enabled == true
+	Config.RadarShopBuyAll = State.RadarShopBuyAll
+	State.UpdateRadarShopBuyAllButton()
+	State.UpdateBuyRadarButtonText()
+	State.UpdateRadarDropdownText()
+	if UI.RadarDropdownList.Visible then
+		State.RefreshRadarDropdownOptions()
+	end
+	if persist ~= false then
+		State.SaveGearShopConfig()
+	end
+
+	return State.RadarShopBuyAll
+end
+
+function State.UpdateBuyRadarButtonText()
+	if State.BuyingRadar then
+		UI.BuyRadarButton.Text = "Stop Buying Radar"
+		UI.BuyRadarButton.BackgroundColor3 = Theme.Bad
+	else
+		UI.BuyRadarButton.Text = "Start Buy Radar"
+		UI.BuyRadarButton.BackgroundColor3 = Theme.Button
+	end
+end
+
+function State.SetBuyingRadar(enabled, persist)
+	State.LastBuyRadarStatus = nil
+	local purchaseItems, selectionReason
+	if enabled == true then
+		purchaseItems, selectionReason = State.GetRadarShopPurchaseItems(true)
+	end
+
+	if enabled == true and #purchaseItems == 0 then
+		State.BuyingRadar = false
+		State.RadarShopBuyAll = false
+		Config.RadarShopBuyAll = false
+		Config.RadarShopAutoBuyEnabled = false
+		Config.RadarShopStartBuy = false
+		State.UpdateRadarShopBuyAllButton()
+		State.UpdateBuyRadarButtonText()
+		State.UpdateRadarDropdownText()
+		State.RefreshRadarDropdownOptions()
+		UI.RadarDropdownList.Visible = true
+		State.SetBuyRadarStatus(selectionReason or "Select radar before starting", Theme.Bad, true)
+		if persist ~= false then
+			State.SaveGearShopConfig()
+		end
+		return
+	end
+
+	State.BuyingRadar = enabled == true
+	if not State.BuyingRadar and State.RadarShopBuyAll then
+		State.RadarShopBuyAll = false
+		Config.RadarShopBuyAll = false
+	end
+	Config.RadarShopAutoBuyEnabled = State.BuyingRadar
+	Config.RadarShopStartBuy = State.BuyingRadar
+	State.UpdateRadarShopBuyAllButton()
+	State.UpdateBuyRadarButtonText()
+	State.UpdateRadarDropdownText()
+
+	if State.BuyingRadar then
+		State.LastBuyRadarTick = 0
+		UI.RadarDropdownList.Visible = false
+		local modeText = State.RadarShopBuyAll and "all radar" or ("%d selected"):format(#purchaseItems)
+		State.SetBuyRadarStatus("Auto Radar Shop ON | " .. modeText, Theme.Good, true)
+		log("Auto Radar Shop ON", State.RadarShopBuyAll and "BuyAll" or table.concat(State.GetSelectedRadarNames(), ", "))
+	else
+		State.SetBuyRadarStatus("Auto Radar Shop stopped", Theme.Muted, true)
+		log("Auto Radar Shop OFF")
+	end
+
+	if persist ~= false then
+		State.SaveGearShopConfig()
+	end
+end
+
 updatePlayerDropdownText = function()
 	local player = getTeleportTargetPlayer()
 	if player then
@@ -3473,7 +4947,7 @@ refreshPlayerDropdownOptions = function()
 	end
 
 	local playerList = getTeleportablePlayers()
-	local optionHeight = UI.IsMobile and 36 or 28
+	local optionHeight = UI.IsMobile and 32 or 26
 	local optionStep = optionHeight + 4
 
 	if #playerList == 0 then
@@ -3543,7 +5017,7 @@ refreshBoulderDropdownOptions = function()
 	end
 
 	local targets = getDigBoulderTargets()
-	local optionHeight = UI.IsMobile and 36 or 28
+	local optionHeight = UI.IsMobile and 32 or 26
 	local optionStep = optionHeight + 4
 
 	if #targets == 0 then
@@ -3621,7 +5095,7 @@ refreshBombDropdownOptions = function()
 	end
 
 	local bombItems = getBombStockValueObjects(true)
-	local optionHeight = UI.IsMobile and 36 or 28
+	local optionHeight = UI.IsMobile and 32 or 26
 	local optionStep = optionHeight + 4
 	if #bombItems == 0 then
 		create("TextLabel", {
@@ -3695,7 +5169,7 @@ function RuneDrop.RefreshDropdownOptions()
 	end
 
 	local runeNames, counts = RuneDrop.GetInventoryNames()
-	local optionHeight = UI.IsMobile and 36 or 28
+	local optionHeight = UI.IsMobile and 32 or 26
 	local optionStep = optionHeight + 4
 	if #runeNames == 0 then
 		create("TextLabel", {
@@ -4289,6 +5763,9 @@ end
 
 setPlayerTeleporting = function(enabled, persist)
 	if enabled == true then
+		if State.BoulderLevelFarmEnabled then
+			State.SetBoulderLevelFarmEnabled(false, false)
+		end
 		if State.BoulderTeleporting then
 			State.BoulderTeleporting = false
 			updateBoulderTeleportButton()
@@ -4370,6 +5847,9 @@ end
 
 setBoulderTeleporting = function(enabled, persist)
 	if enabled == true then
+		if State.BoulderLevelFarmEnabled then
+			State.SetBoulderLevelFarmEnabled(false, false)
+		end
 		if State.PlayerTeleporting then
 			State.PlayerTeleporting = false
 			updatePlayerTeleportButton()
@@ -4495,6 +5975,9 @@ local function refreshBoulderUi()
 	end
 	if UI.DigBoulderDropdownList.Visible then
 		State.RefreshDigBoulderDropdownOptions()
+	end
+	if UI.BoulderLevelDropdownList.Visible then
+		State.RefreshBoulderLevelDropdownOptions()
 	end
 end
 
@@ -4903,7 +6386,7 @@ local function boulderPromptHeartbeat()
 	local fired = 0
 	local prompts = getRunePrompts()
 	for _, prompt in ipairs(prompts) do
-		if prompt and prompt.Parent and isPromptWithinDistance(prompt, root, 50) and fireCrystalPrompt(prompt) then
+		if prompt and prompt.Parent and isPromptWithinDistance(prompt, root, 100) and fireCrystalPrompt(prompt) then
 			fired += 1
 		end
 	end
@@ -5020,6 +6503,68 @@ local function buyBombHeartbeat()
 	end
 	State.LastBuyBombTick = now
 	buyBombCycle()
+end
+
+function State.BuyRadarCycle()
+	if not State.BuyingRadar then
+		return
+	end
+
+	local purchaseItems, reason = State.GetRadarShopPurchaseItems()
+	if #purchaseItems == 0 then
+		State.SetBuyRadarStatus(reason or "No radar items found", Theme.Muted)
+		return
+	end
+
+	local bought = 0
+	local outOfStock = 0
+	local failedItem
+	local failedReason
+
+	for _, stockObject in ipairs(purchaseItems) do
+		local stock = State.GetRadarStock(stockObject)
+		if stock ~= nil and stock <= 0 then
+			outOfStock += 1
+		else
+			local itemName = stockObject.Name
+			local ok, result = State.FireRadarPurchase(itemName)
+			if ok then
+				bought += 1
+				if type(result) == "table" and result.remaining ~= nil then
+					State.RadarShopStockCache[itemName] = tonumber(result.remaining) or result.remaining
+					State.LastRadarShopStockQuery = os.clock()
+				elseif State.RadarShopStockCache[itemName] ~= nil then
+					State.RadarShopStockCache[itemName] = math.max(0, (tonumber(State.RadarShopStockCache[itemName]) or 1) - 1)
+					State.LastRadarShopStockQuery = os.clock()
+				end
+			else
+				failedItem = itemName
+				failedReason = result
+			end
+		end
+	end
+
+	if bought > 0 then
+		local modeText = State.RadarShopBuyAll and "all radar" or "selected radar"
+		State.SetBuyRadarStatus(("Buying %d/%d %s"):format(bought, #purchaseItems, modeText), Theme.Good)
+	elseif failedItem then
+		State.SetBuyRadarStatus("Buy radar failed " .. failedItem .. ": " .. tostring(failedReason), Theme.Bad)
+	elseif outOfStock > 0 then
+		State.SetBuyRadarStatus(State.RadarShopBuyAll and "All radar out of stock" or "Selected radar out of stock", Theme.Muted)
+	end
+end
+
+function State.BuyRadarHeartbeat()
+	if not State.BuyingRadar then
+		return
+	end
+
+	local now = os.clock()
+	if now - State.LastBuyRadarTick < (Config.BuyRadarInterval or Config.BuyBombInterval or 0.1) then
+		return
+	end
+	State.LastBuyRadarTick = now
+	State.BuyRadarCycle()
 end
 
 function State.CollectDropItems()
@@ -5407,6 +6952,8 @@ connect(RunService.RenderStepped, State.SpeedHackHeartbeat)
 connect(UserInputService.JumpRequest, State.InfiniteJumpRequest)
 connect(RunService.Heartbeat, boulderTeleportHeartbeat)
 connect(RunService.Heartbeat, boulderPromptHeartbeat)
+connect(RunService.Heartbeat, State.BoulderHopHeartbeat)
+connect(RunService.Heartbeat, State.BuyRadarHeartbeat)
 
 connect(Workspace.DescendantAdded, function(object)
 	if isBoulderPathObject(object) then
@@ -5501,6 +7048,7 @@ connect(FarmButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	setFarming(not State.Farming)
 end)
@@ -5512,6 +7060,7 @@ connect(DropAllButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	task.spawn(State.DropAllBackpackItems)
 end)
@@ -5523,6 +7072,7 @@ connect(UI.DropMoneyButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	task.spawn(State.DropMoneyCrystals)
 end)
@@ -5533,6 +7083,7 @@ connect(UI.RuneDropdownButton.Activated, function()
 	PlayerDropdownList.Visible = false
 	BoulderDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = not UI.RuneDropdownList.Visible
 	if UI.RuneDropdownList.Visible then
@@ -5546,6 +7097,7 @@ connect(UI.DropRuneButton.Activated, function()
 	PlayerDropdownList.Visible = false
 	BoulderDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	task.spawn(RuneDrop.DropSelectedItems)
 end)
@@ -5557,6 +7109,7 @@ connect(UI.DigReplayButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	State.SetDigReplayEnabled(not State.DigReplayEnabled)
 end)
@@ -5567,11 +7120,43 @@ connect(UI.DigBoulderDropdownButton.Activated, function()
 	PlayerDropdownList.Visible = false
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = not UI.DigBoulderDropdownList.Visible
 	if UI.DigBoulderDropdownList.Visible then
 		State.RefreshDigBoulderDropdownOptions()
 	end
+end)
+
+connect(UI.BoulderLevelDropdownButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	if not State.IsLockedScriptUnlocked() then
+		UI.BoulderLevelDropdownList.Visible = false
+		State.ShowLockedScriptMessage()
+		return
+	end
+	UI.BoulderLevelDropdownList.Visible = not UI.BoulderLevelDropdownList.Visible
+	if UI.BoulderLevelDropdownList.Visible then
+		State.RefreshBoulderLevelDropdownOptions()
+	end
+end)
+
+connect(UI.BoulderLevelFarmButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	State.SetBoulderLevelFarmEnabled(not State.BoulderLevelFarmEnabled)
 end)
 
 connect(PlayerDropdownButton.Activated, function()
@@ -5580,6 +7165,7 @@ connect(PlayerDropdownButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	PlayerDropdownList.Visible = not PlayerDropdownList.Visible
 	if PlayerDropdownList.Visible then
@@ -5594,6 +7180,7 @@ connect(PlayerTeleportButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	setPlayerTeleporting(not State.PlayerTeleporting)
 end)
@@ -5604,6 +7191,7 @@ connect(BoulderDropdownButton.Activated, function()
 	PlayerDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	BoulderDropdownList.Visible = not BoulderDropdownList.Visible
 	if BoulderDropdownList.Visible then
@@ -5618,6 +7206,7 @@ connect(BoulderTeleportButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	setBoulderTeleporting(not State.BoulderTeleporting)
 end)
@@ -5629,6 +7218,7 @@ connect(UI.BoulderNoclipButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	State.SetNoclipEnabled(not State.NoclipEnabled)
 end)
@@ -5640,6 +7230,7 @@ connect(UI.FloatButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	State.ToggleFloat()
 end)
@@ -5651,6 +7242,7 @@ connect(UI.SpeedButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	State.SetSpeedHackEnabled(not State.SpeedHackEnabled)
 end)
@@ -5662,6 +7254,7 @@ connect(UI.InfiniteJumpButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	State.SetInfiniteJumpEnabled(not State.InfiniteJumpEnabled)
 end)
@@ -5673,6 +7266,7 @@ connect(BoulderEspButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	setBoulderEspEnabled(not State.BoulderEspEnabled)
 end)
@@ -5684,8 +7278,23 @@ connect(BoulderPromptButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
 	setBoulderPromptEnabled(not State.BoulderPromptEnabled)
+end)
+
+connect(UI.BoulderHopButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	State.SetBoulderHopEnabled(not State.BoulderHopEnabled)
 end)
 
 connect(BombDropdownButton.Activated, function()
@@ -5695,6 +7304,8 @@ connect(BombDropdownButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
 	BombDropdownList.Visible = not BombDropdownList.Visible
 	if BombDropdownList.Visible then
 		refreshBombDropdownOptions()
@@ -5708,7 +7319,9 @@ connect(UI.BuyAllBombButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
 	if State.BuyingBomb and State.GearShopBuyAll then
 		setBuyingBomb(false)
 	else
@@ -5724,13 +7337,62 @@ connect(BuyBombButton.Activated, function()
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
 	setBuyingBomb(not State.BuyingBomb)
+end)
+
+connect(UI.RadarDropdownButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = not UI.RadarDropdownList.Visible
+	if UI.RadarDropdownList.Visible then
+		State.RefreshRadarDropdownOptions()
+	end
+end)
+
+connect(UI.BuyAllRadarButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	if State.BuyingRadar and State.RadarShopBuyAll then
+		State.SetBuyingRadar(false)
+	else
+		State.SetRadarShopBuyAll(true, false)
+		State.SetBuyingRadar(true)
+	end
+end)
+
+connect(UI.BuyRadarButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	State.SetBuyingRadar(not State.BuyingRadar)
 end)
 
 connect(CloseButton.Activated, function()
 	setFarming(false)
 	setBuyingBomb(false)
+	State.SetBuyingRadar(false)
 	State.SetDigReplayEnabled(false)
 	setPlayerTeleporting(false)
 	setBoulderTeleporting(false)
@@ -5740,13 +7402,17 @@ connect(CloseButton.Activated, function()
 	State.SetInfiniteJumpEnabled(false)
 	setBoulderEspEnabled(false)
 	setBoulderPromptEnabled(false)
+	State.SetBoulderLevelFarmEnabled(false)
+	State.SetBoulderHopEnabled(false)
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
 	PlayerDropdownList.Visible = false
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
 	Gui.Enabled = false
 end)
 
@@ -5798,6 +7464,7 @@ end)
 function State.Stop()
 	setFarming(false)
 	setBuyingBomb(false)
+	State.SetBuyingRadar(false)
 	State.SetDigReplayEnabled(false)
 	setPlayerTeleporting(false)
 	setBoulderTeleporting(false)
@@ -5807,6 +7474,8 @@ function State.Stop()
 	State.SetInfiniteJumpEnabled(false)
 	setBoulderEspEnabled(false)
 	setBoulderPromptEnabled(false)
+	State.SetBoulderLevelFarmEnabled(false)
+	State.SetBoulderHopEnabled(false)
 end
 
 function State.StartFarm(mode, threshold)
@@ -6078,6 +7747,38 @@ function State.StopBoulderESP()
 	setBoulderEspEnabled(false)
 end
 
+function State.SetBoulderLevelFarm(levelOrEnabled, enabled)
+	if type(levelOrEnabled) == "string" then
+		State.SetBoulderLevelFarmLevel(levelOrEnabled)
+		return State.SetBoulderLevelFarmEnabled(enabled ~= false)
+	end
+
+	return State.SetBoulderLevelFarmEnabled(levelOrEnabled)
+end
+
+function State.StartBoulderLevelFarm(level)
+	if level ~= nil then
+		State.SetBoulderLevelFarmLevel(level)
+	end
+	return State.SetBoulderLevelFarmEnabled(true)
+end
+
+function State.StopBoulderLevelFarm()
+	return State.SetBoulderLevelFarmEnabled(false)
+end
+
+function State.SetBoulderHop(enabled)
+	return State.SetBoulderHopEnabled(enabled)
+end
+
+function State.StartBoulderHop()
+	return State.SetBoulderHopEnabled(true)
+end
+
+function State.StopBoulderHop()
+	return State.SetBoulderHopEnabled(false)
+end
+
 function State.SetRuneFirePrompt(enabled)
 	setBoulderPromptEnabled(enabled)
 	return State.BoulderPromptEnabled
@@ -6208,6 +7909,59 @@ function State.StopGearShop()
 	setBuyingBomb(false)
 end
 
+function State.SetRadarSelection(itemNames)
+	State.SelectedRadarItems = {}
+
+	if type(itemNames) == "table" then
+		for _, itemName in ipairs(itemNames) do
+			if itemName then
+				State.SelectedRadarItems[tostring(itemName)] = true
+			end
+		end
+	else
+		if itemNames then
+			State.SelectedRadarItems[tostring(itemNames)] = true
+		end
+	end
+
+	State.SyncRadarSelectionConfig()
+	State.SaveGearShopConfig()
+	State.UpdateRadarDropdownText()
+	if UI.RadarDropdownList.Visible then
+		State.RefreshRadarDropdownOptions()
+	end
+end
+
+function State.StartBuyRadar(itemNames)
+	if itemNames ~= nil then
+		State.SetRadarShopBuyAll(false)
+		State.SetRadarSelection(itemNames)
+	end
+	State.SetBuyingRadar(true)
+end
+
+function State.StopBuyRadar()
+	State.SetBuyingRadar(false)
+end
+
+function State.StartBuyAllRadarShop()
+	State.SetRadarShopBuyAll(true, false)
+	State.SetBuyingRadar(true)
+	return State.BuyingRadar
+end
+
+function State.StartBuyAllRadar()
+	return State.StartBuyAllRadarShop()
+end
+
+function State.StartRadarShop(itemNames)
+	return State.StartBuyRadar(itemNames)
+end
+
+function State.StopRadarShop()
+	State.SetBuyingRadar(false)
+end
+
 function State.ApplySavedConfigStarts()
 	if tostring(Config.SelectedBoulderName or "") ~= "" then
 		State.SetBoulderTarget(Config.SelectedBoulderName, false)
@@ -6241,6 +7995,12 @@ function State.ApplySavedConfigStarts()
 	if Config.BoulderPromptStart then
 		setBoulderPromptEnabled(true, false)
 	end
+	if Config.BoulderLevelFarmStart then
+		State.SetBoulderLevelFarmEnabled(true, false)
+	end
+	if Config.BoulderHopStart then
+		State.SetBoulderHopEnabled(true, false)
+	end
 	if Config.FarmStart then
 		setFarming(true, false)
 	end
@@ -6256,11 +8016,15 @@ function State.ApplySavedConfigStarts()
 	if Config.GearShopStartBuy or Config.GearShopAutoBuyEnabled then
 		setBuyingBomb(true, false)
 	end
+	if Config.RadarShopStartBuy or Config.RadarShopAutoBuyEnabled then
+		State.SetBuyingRadar(true, false)
+	end
 end
 
 function State.Destroy()
 	setFarming(false, false)
 	setBuyingBomb(false, false)
+	State.SetBuyingRadar(false, false)
 	State.SetDigReplayEnabled(false, false)
 	setPlayerTeleporting(false, false)
 	setBoulderTeleporting(false, false)
@@ -6270,6 +8034,8 @@ function State.Destroy()
 	State.SetInfiniteJumpEnabled(false, false)
 	setBoulderEspEnabled(false, false)
 	setBoulderPromptEnabled(false, false)
+	State.SetBoulderLevelFarmEnabled(false, false)
+	State.SetBoulderHopEnabled(false, false)
 	for _, connection in ipairs(State.Connections) do
 		pcall(function()
 			connection:Disconnect()
@@ -6302,10 +8068,16 @@ State.UpdateInfiniteJumpButton()
 State.UpdateDigReplayButton()
 updateBoulderEspButton()
 updateBoulderPromptButton()
+State.UpdateBoulderLevelDropdownText()
+State.UpdateBoulderLevelFarmButton()
+State.UpdateBoulderHopButton()
 RuneDrop.UpdateDropdownText()
 State.UpdateGearShopBuyAllButton()
 State.UpdateBuyBombButtonText()
 updateBombDropdownText()
+State.UpdateRadarShopBuyAllButton()
+State.UpdateBuyRadarButtonText()
+State.UpdateRadarDropdownText()
 setStatus("Ready", Theme.Muted)
 
 if Config.FarmStart
@@ -6313,6 +8085,8 @@ if Config.FarmStart
 	or Config.BoulderTeleportStart
 	or Config.BoulderEspStart
 	or Config.BoulderPromptStart
+	or Config.BoulderLevelFarmStart
+	or Config.BoulderHopStart
 	or Config.DigReplayStart
 	or Config.NoclipStart
 	or Config.FloatStart
@@ -6320,6 +8094,8 @@ if Config.FarmStart
 	or Config.InfiniteJumpStart
 	or Config.GearShopStartBuy
 	or Config.GearShopAutoBuyEnabled
+	or Config.RadarShopStartBuy
+	or Config.RadarShopAutoBuyEnabled
 	or Config.Collapsed
 	or tostring(Config.SelectedBoulderName or "") ~= ""
 	or tostring(Config.SelectedDigBoulderName or "") ~= "" then
