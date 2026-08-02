@@ -194,6 +194,7 @@ local AllowedUsers = {
 	m4rymeqw = true, --มิวสิค
 	Achirada3 = true, --ลูกค้า
 	fewkung2580 = true, --ลูกค้า
+	OoShinobiPKoO = true, --ลูกค้า
 	Abox0611 = true, --เด็กจ้าง
 	guplqqeb = true, --เด็กจ้าง
 	ufmn88zmuh19 = true, --ให้เทส
@@ -248,7 +249,7 @@ local Config = {
 	BoulderNoclipEnabled = true,
 	SpeedHackSpeed = 250,
 	SpeedHackDefaultSpeed = 30,
-	BoulderEspMaxDistance = 5000,
+	BoulderEspMaxDistance = 50000,
 	BoulderPromptInterval = 0,
 	DigLoopInterval = 0.01,
 	PrintStatus = true,
@@ -265,13 +266,14 @@ local Config = {
 	BoulderRejoinStart = false,
 	BoulderLevelFarmLevel = "All",
 	BoulderLevelFarmLevels = { "All" },
-	BoulderLevelFarmUpDistance = 300,
-	BoulderLevelFarmForwardDistance = 1800,
+	BoulderLevelFarmUpDistance = 0,
+	BoulderLevelFarmForwardDistance = 0,
 	BoulderLevelFarmSpeed = 300,
 	BoulderLevelFarmUnderOffset = 4,
 	BoulderLevelFarmReturnDistance = 25,
 	BoulderLevelFarmTweenInterval = 0.1,
 	BoulderLevelFarmNextDelay = 2.2,
+	PickaxeRecoverInterval = 1,
 	DigReplayStart = false,
 	NoclipStart = false,
 	FloatStart = false,
@@ -508,6 +510,7 @@ local State = {
 	LastDigToolEquipAttemptTick = -1000000000,
 	LastDigToolStatusTick = 0,
 	LastWrongDigToolUnequipTick = 0,
+	LastPickaxeRecoverTick = -1000000000,
 	SelectedBoulderLevel = tostring(Config.BoulderLevelFarmLevel or "All"),
 	SelectedBoulderLevels = {},
 	NoclipEnabled = false,
@@ -742,6 +745,7 @@ end
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
 local CrystalDropRequest = Remotes and Remotes:FindFirstChild("CrystalDropRequest")
 State.DigRequestRemote = Remotes and Remotes:FindFirstChild("DigRequest")
+State.GoHomeRemote = Remotes and Remotes:FindFirstChild("GoHome")
 local Networking
 local BombShopConfig
 local BombShopStockCache = {}
@@ -3464,20 +3468,20 @@ function State.GetWhitelistedPickaxeRank(tool)
 	return nil
 end
 
-function State.GetWhitelistedPickaxe()
+function State.GetWhitelistedPickaxe(forceScan)
 	local now = os.clock()
 	local character = LocalPlayer and LocalPlayer.Character
 	local backpack = State.GetPlayerBackpack and State.GetPlayerBackpack()
 	local cachedTool = State.DigToolCache
 
-	if cachedTool and (cachedTool.Parent == character or cachedTool.Parent == backpack) then
+	if not forceScan and cachedTool and (cachedTool.Parent == character or cachedTool.Parent == backpack) then
 		local cachedRank = State.GetWhitelistedPickaxeRank(cachedTool)
 		if cachedRank and (cachedRank == 1 or now - (State.DigToolCacheTick or 0) < DIG_PICKAXE_SCAN_INTERVAL) then
 			return cachedTool
 		end
 	end
 
-	if now - (State.DigToolCacheTick or 0) < DIG_PICKAXE_SCAN_INTERVAL then
+	if not forceScan and now - (State.DigToolCacheTick or 0) < DIG_PICKAXE_SCAN_INTERVAL then
 		return nil
 	end
 
@@ -3546,8 +3550,44 @@ function State.UnequipNonWhitelistedDigTool(character)
 	return true
 end
 
-function State.GetDigTool()
-	return State.GetWhitelistedPickaxe and State.GetWhitelistedPickaxe() or nil
+function State.GetDigTool(forceScan)
+	return State.GetWhitelistedPickaxe and State.GetWhitelistedPickaxe(forceScan) or nil
+end
+
+function State.GetGoHomeRemote()
+	if State.GoHomeRemote and State.GoHomeRemote.Parent then
+		return State.GoHomeRemote
+	end
+
+	State.GoHomeRemote = Remotes and Remotes:FindFirstChild("GoHome")
+	return State.GoHomeRemote
+end
+
+function State.FirePickaxeRecover()
+	local now = os.clock()
+	if now - (State.LastPickaxeRecoverTick or 0) < (Config.PickaxeRecoverInterval or 1) then
+		return false
+	end
+
+	local remote = State.GetGoHomeRemote and State.GetGoHomeRemote()
+	if not remote then
+		if now - (State.LastDigToolStatusTick or 0) > 2 then
+			State.LastDigToolStatusTick = now
+			setStatus("GoHome remote not found", Theme.Bad)
+		end
+		return false
+	end
+
+	State.LastPickaxeRecoverTick = now
+	pcall(function()
+		remote:FireServer("sell")
+	end)
+	setStatus("Pickaxe missing -> GoHome sell", Theme.Muted)
+	return true
+end
+
+function State.HasPickaxeAtBoulder()
+	return State.GetDigTool and State.GetDigTool(true) ~= nil
 end
 
 function State.GetDigToolName()
@@ -4578,6 +4618,13 @@ function State.RunBoulderLevelFarmLoop()
 									State.SetDigReplayEnabled(false, false)
 									setStatus("Returning to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
 								end
+							elseif not (State.HasPickaxeAtBoulder and State.HasPickaxeAtBoulder()) then
+								if State.DigReplayEnabled then
+									State.SetDigReplayEnabled(false, false)
+								end
+								if State.FirePickaxeRecover then
+									State.FirePickaxeRecover()
+								end
 							elseif not State.DigReplayEnabled then
 								State.SetDigReplayEnabled(true, false)
 								setStatus("Level farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
@@ -4589,7 +4636,14 @@ function State.RunBoulderLevelFarmLoop()
 						end
 
 						if State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() == target and target.Parent and State.IsBoulderLevelFarmMatch(target) then
-							if not State.DigReplayEnabled then
+							if not (State.HasPickaxeAtBoulder and State.HasPickaxeAtBoulder()) then
+								if State.DigReplayEnabled then
+									State.SetDigReplayEnabled(false, false)
+								end
+								if State.FirePickaxeRecover then
+									State.FirePickaxeRecover()
+								end
+							elseif not State.DigReplayEnabled then
 								State.SetDigReplayEnabled(true, false)
 								setStatus("Level farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
 							end
