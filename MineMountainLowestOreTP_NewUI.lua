@@ -10,16 +10,7 @@ do
 local AllowedUsers = {
 	LockedScriptUsers = {
 		mxnkyhpc5015 = true,
-		FERN_18157 = true, --ลูกค้า
-		zonebuxx29 = true, --ลูกค้า
-		Sleep223450 = true, --ลูกค้า
 		m4rymeqw = true, --มิวสิค
-		Achirada3 = true, --ลูกค้า
-		fewkung2580 = true, --ลูกค้า
-		Abox0611 = true, --เด็กจ้าง
-		guplqqeb = true, --เด็กจ้าง
-		ufmn88zmuh19 = true, --ให้เทส
-		Tans24fe = true --ลูกค้า
 	},
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
