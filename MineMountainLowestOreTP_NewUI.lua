@@ -4,13 +4,197 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
 
-local LocalPlayer = Players.LocalPlayer
+local LocalPlayer
+
+do
+local LOAD_GATE_KEY = "CrystalToolsNewUILoadGate"
+local LOAD_CHECK_INTERVAL = 0.2
+local LOAD_CLEAR_STABLE_SECONDS = 0.75
+
+local LoadGateToken = {}
+_G[LOAD_GATE_KEY] = LoadGateToken
+
+local function isCurrentLoadGate()
+	return _G[LOAD_GATE_KEY] == LoadGateToken
+end
+
+local function waitForGameLoaded()
+	while isCurrentLoadGate() and not game:IsLoaded() do
+		task.wait(LOAD_CHECK_INTERVAL)
+	end
+end
+
+local function waitForLocalPlayer()
+	local player = Players.LocalPlayer
+	while isCurrentLoadGate() and not player do
+		task.wait(LOAD_CHECK_INTERVAL)
+		player = Players.LocalPlayer
+	end
+	return player
+end
+
+local function waitForPlayerGui(player)
+	if not player then
+		return nil
+	end
+
+	local playerGui = player:FindFirstChild("PlayerGui")
+	while isCurrentLoadGate() and not playerGui do
+		task.wait(LOAD_CHECK_INTERVAL)
+		playerGui = player:FindFirstChild("PlayerGui")
+	end
+	return playerGui
+end
+
+local function isGuiChainVisible(guiObject)
+	local current = guiObject
+	while current do
+		if current:IsA("GuiObject") then
+			local ok, visible = pcall(function()
+				return current.Visible
+			end)
+			if ok and not visible then
+				return false
+			end
+		elseif current:IsA("LayerCollector") then
+			local ok, enabled = pcall(function()
+				return current.Enabled
+			end)
+			if ok and not enabled then
+				return false
+			end
+		end
+
+		if current == game then
+			break
+		end
+		current = current.Parent
+	end
+
+	return true
+end
+
+local function isLoadingGuiShowing(instance)
+	if not (instance and instance.Parent) then
+		return false
+	end
+
+	if instance:IsA("GuiObject") then
+		return isGuiChainVisible(instance)
+	end
+
+	if instance:IsA("LayerCollector") then
+		local ok, enabled = pcall(function()
+			return instance.Enabled
+		end)
+		if ok and not enabled then
+			return false
+		end
+
+		for _, descendant in ipairs(instance:GetDescendants()) do
+			if descendant:IsA("GuiObject") and isGuiChainVisible(descendant) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+local function isProgressAttributeLoading(player, prefix)
+	local total = tonumber(player:GetAttribute(prefix .. "Total"))
+	local progress = tonumber(player:GetAttribute(prefix .. "Progress"))
+	if total and total > 0 then
+		return not progress or progress < total
+	end
+	return false
+end
+
+local function isMineMountainLoadDone(player, playerGui)
+	if not playerGui then
+		return false
+	end
+
+	if player:GetAttribute("LoadingScreenActive") == true then
+		return false
+	end
+
+	if isProgressAttributeLoading(player, "MountainReset") or isProgressAttributeLoading(player, "GardenLoading") then
+		return false
+	end
+
+	local explorerHud = playerGui:FindFirstChild("ExplorerHud")
+	local resetOverlay = explorerHud and explorerHud:FindFirstChild("ResetOverlay")
+	if isLoadingGuiShowing(resetOverlay) then
+		return false
+	end
+
+	local tutorialCover = playerGui:FindFirstChild("TutorialLoadingCover")
+	if isLoadingGuiShowing(tutorialCover) then
+		return false
+	end
+
+	return true
+end
+
+local function waitForMineMountainLoadDone(player)
+	local playerGui = waitForPlayerGui(player)
+	local clearSince = nil
+	local announced = false
+
+	while isCurrentLoadGate() do
+		if isMineMountainLoadDone(player, playerGui) then
+			clearSince = clearSince or os.clock()
+			if os.clock() - clearSince >= LOAD_CLEAR_STABLE_SECONDS then
+				break
+			end
+		else
+			clearSince = nil
+			if not announced then
+				announced = true
+				print("[CrystalTools] waiting for Mine Mountain loading screen to finish...")
+			end
+		end
+
+		task.wait(LOAD_CHECK_INTERVAL)
+		if playerGui and not playerGui.Parent then
+			playerGui = waitForPlayerGui(player)
+		end
+	end
+
+	if announced and isCurrentLoadGate() then
+		print("[CrystalTools] loading finished, starting script.")
+	end
+end
+
+waitForGameLoaded()
+LocalPlayer = waitForLocalPlayer()
+if not LocalPlayer or not isCurrentLoadGate() then
+	return
+end
+waitForMineMountainLoadDone(LocalPlayer)
+if not isCurrentLoadGate() then
+	return
+end
+_G[LOAD_GATE_KEY] = nil
+end
+
 do
 local AllowedUsers = {
 	LockedScriptUsers = {
 		mxnkyhpc5015 = true,
+		FERN_18157 = true, --ลูกค้า
+		zonebuxx29 = true, --ลูกค้า
+		Sleep223450 = true, --ลูกค้า
 		m4rymeqw = true, --มิวสิค
+		Achirada3 = true, --ลูกค้า
+		fewkung2580 = true, --ลูกค้า
+		Abox0611 = true, --เด็กจ้าง
+		guplqqeb = true, --เด็กจ้าง
+		ufmn88zmuh19 = true, --ให้เทส
+		Tans24fe = true --ลูกค้า
 	},
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
@@ -87,11 +271,13 @@ local Config = {
 	BoulderHopInterval = 1,
 	BoulderHopEmptyDelay = 2,
 	BoulderHopSort = "Asc",
+	BoulderRejoinStart = false,
 	BoulderLevelFarmLevel = "All",
 	BoulderLevelFarmLevels = { "All" },
 	BoulderLevelFarmUpDistance = 300,
 	BoulderLevelFarmForwardDistance = 1800,
 	BoulderLevelFarmSpeed = 300,
+	BoulderLevelFarmUnderOffset = 6,
 	BoulderLevelFarmReturnDistance = 25,
 	BoulderLevelFarmTweenInterval = 0.1,
 	BoulderLevelFarmNextDelay = 1.5,
@@ -237,12 +423,14 @@ do
 		Config.BoulderPromptStart = savedConfig.BoulderPromptStart == true or savedConfig.BoulderPromptEnabled == true
 		Config.BoulderLevelFarmStart = savedConfig.BoulderLevelFarmStart == true or savedConfig.BoulderLevelFarmEnabled == true
 		Config.BoulderHopStart = savedConfig.BoulderHopStart == true or savedConfig.BoulderHopEnabled == true
+		Config.BoulderRejoinStart = savedConfig.BoulderRejoinStart == true or savedConfig.BoulderRejoinEnabled == true
 		if savedConfig.BoulderHopSort ~= nil then
 			Config.BoulderHopSort = tostring(savedConfig.BoulderHopSort)
 		end
 		if not _G.CrystalToolsLockedScriptUnlocked then
 			Config.BoulderLevelFarmStart = false
 			Config.BoulderHopStart = false
+			Config.BoulderRejoinStart = false
 		end
 		Config.DigReplayStart = savedConfig.DigReplayStart == true or savedConfig.DigReplayEnabled == true
 		Config.NoclipStart = savedConfig.NoclipStart == true or savedConfig.NoclipEnabled == true
@@ -319,8 +507,16 @@ local State = {
 	BoulderHopEnabled = false,
 	BoulderHopTeleporting = false,
 	BoulderHopNoTargetSince = nil,
+	BoulderRejoinEnabled = false,
+	BoulderRejoining = false,
+	BoulderRejoinNoTargetSince = nil,
 	PickaxeShopNameSet = nil,
 	PickaxeShopNameSetTick = 0,
+	DigToolCache = nil,
+	DigToolCacheTick = -1000000000,
+	LastDigToolEquipAttemptTick = -1000000000,
+	LastDigToolStatusTick = 0,
+	LastWrongDigToolUnequipTick = 0,
 	SelectedBoulderLevel = tostring(Config.BoulderLevelFarmLevel or "All"),
 	SelectedBoulderLevels = {},
 	NoclipEnabled = false,
@@ -354,6 +550,7 @@ local State = {
 	LastBoulderTeleportTick = 0,
 	LastBoulderPromptTick = 0,
 	LastBoulderHopTick = 0,
+	LastBoulderRejoinTick = 0,
 	LastBuyBombStatus = nil,
 	LastBuyRadarStatus = nil,
 	RadarShopConfig = nil,
@@ -465,6 +662,7 @@ function State.SaveConfig()
 	Config.BoulderPromptStart = State.BoulderPromptEnabled == true
 	Config.BoulderLevelFarmStart = State.BoulderLevelFarmEnabled == true
 	Config.BoulderHopStart = State.BoulderHopEnabled == true
+	Config.BoulderRejoinStart = State.BoulderRejoinEnabled == true
 	Config.BoulderLevelFarmLevels = selectedBoulderLevels
 	Config.BoulderLevelFarmLevel = selectedBoulderLevels[1] or "All"
 	Config.DigReplayStart = State.DigReplayEnabled == true
@@ -508,6 +706,8 @@ function State.SaveConfig()
 		BoulderHopStart = Config.BoulderHopStart,
 		BoulderHopEnabled = Config.BoulderHopStart,
 		BoulderHopSort = Config.BoulderHopSort,
+		BoulderRejoinStart = Config.BoulderRejoinStart,
+		BoulderRejoinEnabled = Config.BoulderRejoinStart,
 		BoulderLevelFarmLevel = Config.BoulderLevelFarmLevel,
 		BoulderLevelFarmLevels = selectedBoulderLevels,
 		SelectedBoulderLevels = selectedBoulderLevels,
@@ -1520,6 +1720,18 @@ UI.BoulderHopButton = create("TextButton", {
 }, Content)
 styleSurface(UI.BoulderHopButton, 6, Theme.Accent)
 
+UI.BoulderRejoinButton = create("TextButton", {
+	Position = UDim2.new(5 / 6, -6, 0, 936),
+	Size = UDim2.new(1 / 6, -10, 0, 34),
+	BackgroundColor3 = Theme.ButtonDark,
+	BorderSizePixel = 0,
+	Text = "RJ OFF",
+	TextColor3 = Theme.Text,
+	TextSize = 10,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.BoulderRejoinButton, 6, Theme.Accent)
+
 UI.FloatButton = create("TextButton", {
 	Position = UDim2.new(0, 14, 0, 976),
 	Size = UDim2.new(1 / 3, -16, 0, 34),
@@ -1817,6 +2029,7 @@ do
 		BoulderEspButton,
 		BoulderPromptButton,
 		UI.BoulderHopButton,
+		UI.BoulderRejoinButton,
 		UI.FloatButton,
 		UI.SpeedButton,
 		UI.InfiniteJumpButton,
@@ -2085,15 +2298,17 @@ local function applyVerticalControlsLayout()
 	BoulderDropdownList.Position = UDim2.new(0, 14, 0, 1426)
 	BoulderDropdownList.Size = UDim2.new(1, -28, 0, 102)
 	BoulderTeleportButton.Position = UDim2.new(0, 14, 0, 1540)
-	BoulderTeleportButton.Size = UDim2.new(1 / 5, -12, 0, 34)
-	UI.BoulderNoclipButton.Position = UDim2.new(1 / 5, 9, 0, 1540)
-	UI.BoulderNoclipButton.Size = UDim2.new(1 / 5, -12, 0, 34)
-	BoulderEspButton.Position = UDim2.new(2 / 5, 4, 0, 1540)
-	BoulderEspButton.Size = UDim2.new(1 / 5, -12, 0, 34)
-	BoulderPromptButton.Position = UDim2.new(3 / 5, -1, 0, 1540)
-	BoulderPromptButton.Size = UDim2.new(1 / 5, -12, 0, 34)
-	UI.BoulderHopButton.Position = UDim2.new(4 / 5, -6, 0, 1540)
-	UI.BoulderHopButton.Size = UDim2.new(1 / 5, -12, 0, 34)
+	BoulderTeleportButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	UI.BoulderNoclipButton.Position = UDim2.new(1 / 6, 10, 0, 1540)
+	UI.BoulderNoclipButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	BoulderEspButton.Position = UDim2.new(2 / 6, 6, 0, 1540)
+	BoulderEspButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	BoulderPromptButton.Position = UDim2.new(3 / 6, 2, 0, 1540)
+	BoulderPromptButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	UI.BoulderHopButton.Position = UDim2.new(4 / 6, -2, 0, 1540)
+	UI.BoulderHopButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	UI.BoulderRejoinButton.Position = UDim2.new(5 / 6, -6, 0, 1540)
+	UI.BoulderRejoinButton.Size = UDim2.new(1 / 6, -10, 0, 34)
 	UI.FloatButton.Position = UDim2.new(0, 14, 0, 1580)
 	UI.FloatButton.Size = UDim2.new(1 / 3, -16, 0, 34)
 	UI.SpeedButton.Position = UDim2.new(1 / 3, 4, 0, 1580)
@@ -2143,7 +2358,7 @@ local function applyHorizontalControlsLayout(width)
 	local halfWidth = math.floor((columnWidth - 10) / 2)
 	local tpButtonWidth = math.min(104, math.max(82, math.floor(columnWidth * 0.32)))
 	local playerDropdownWidth = columnWidth - tpButtonWidth - 8
-	local boulderActionWidth = math.floor((columnWidth - 40) / 5)
+	local boulderActionWidth = math.floor((columnWidth - 50) / 6)
 	local runeButtonWidth = math.min(104, math.max(86, math.floor(columnWidth * 0.28)))
 	local runeAmountWidth = math.min(72, math.max(58, math.floor(columnWidth * 0.2)))
 	local runeDropdownWidth = columnWidth - runeButtonWidth - runeAmountWidth - 16
@@ -2189,6 +2404,7 @@ local function applyHorizontalControlsLayout(width)
 	setRect(BoulderEspButton, rightX + (boulderActionWidth * 2) + 20, 158, boulderActionWidth, 32)
 	setRect(BoulderPromptButton, rightX + (boulderActionWidth * 3) + 30, 158, boulderActionWidth, 32)
 	setRect(UI.BoulderHopButton, rightX + (boulderActionWidth * 4) + 40, 158, boulderActionWidth, 32)
+	setRect(UI.BoulderRejoinButton, rightX + (boulderActionWidth * 5) + 50, 158, boulderActionWidth, 32)
 	setRect(BoulderDropdownList, rightX, 198, columnWidth, 108)
 	setRect(UI.FloatButton, rightX, 200, math.floor((columnWidth - 20) / 3), 32)
 	setRect(UI.SpeedButton, rightX + math.floor((columnWidth - 20) / 3) + 10, 200, math.floor((columnWidth - 20) / 3), 32)
@@ -3080,31 +3296,152 @@ local function getBoulderTargetDisplayName(target)
 	return labels[target] or target.Name
 end
 
-function State.GetDigTool()
-	local character = LocalPlayer and LocalPlayer.Character
-	local backpack = LocalPlayer and LocalPlayer:FindFirstChildOfClass("Backpack")
-	if State.BoulderLevelFarmEnabled then
-		local nameSet = State.GetPickaxeShopNameSet and State.GetPickaxeShopNameSet()
-		if character then
-			for _, child in ipairs(character:GetChildren()) do
-				if State.IsPickaxeShopTool and State.IsPickaxeShopTool(child, nameSet) then
-					return child
-				end
-			end
-		end
+local DIG_HOTBAR_KEY_CODES = {
+	Enum.KeyCode.One,
+	Enum.KeyCode.Two,
+	Enum.KeyCode.Three,
+	Enum.KeyCode.Four,
+	Enum.KeyCode.Five,
+	Enum.KeyCode.Six,
+	Enum.KeyCode.Seven,
+	Enum.KeyCode.Eight,
+	Enum.KeyCode.Nine,
+	Enum.KeyCode.Zero
+}
 
-		if backpack then
-			for _, child in ipairs(backpack:GetChildren()) do
-				if State.IsPickaxeShopTool and State.IsPickaxeShopTool(child, nameSet) then
-					return child
-				end
+local DIG_PICKAXE_PRIORITY_NAMES = {
+	"The Terminus",
+	"Astral Rend",
+	"Celestial Apex",
+	"Chipped Stone",
+	"Copper Pick",
+	"DIAMOND Pickaxe",
+	"Eclipse Fang",
+	"Emerald Carver",
+	"Frostbite Pick",
+	"Hardened Iron",
+	"Nebular Throne",
+	"Obsidian Edge",
+	"Reinforced Steel",
+	"Rusty Scrapper",
+	"Singularity",
+	"Tempest Pick",
+	"Titanium Spike",
+	"Voidreign",
+	"Volcano Basalt",
+	"Weathered Wood"
+}
+
+local DIG_PICKAXE_PRIORITY = {}
+local DIG_PICKAXE_SCAN_INTERVAL = 0.5
+local DIG_TOOL_EQUIP_RETRY_INTERVAL = 0.25
+local DIG_WRONG_TOOL_UNEQUIP_INTERVAL = 0.5
+local function canonicalDigToolName(value)
+	return (tostring(value or ""):lower():gsub("[%s%p_]+", ""))
+end
+
+for index, name in ipairs(DIG_PICKAXE_PRIORITY_NAMES) do
+	DIG_PICKAXE_PRIORITY[canonicalDigToolName(name)] = index
+end
+
+function State.GetPlayerBackpack()
+	if not LocalPlayer then
+		return nil
+	end
+
+	return LocalPlayer:FindFirstChildOfClass("Backpack") or LocalPlayer:FindFirstChild("Backpack")
+end
+
+function State.GetToolNameVariants(tool)
+	local variants = {}
+	local used = {}
+
+	local function add(value)
+		local text = tostring(value or ""):match("^%s*(.-)%s*$") or ""
+		if text ~= "" and not used[text] then
+			used[text] = true
+			table.insert(variants, text)
+		end
+	end
+
+	local name = tostring(tool and tool.Name or "")
+	add(name)
+	add((name:gsub("%s*%b[]", "")))
+	add((name:gsub("%s*%b()", "")))
+
+	if tool then
+		for _, attributeName in ipairs({ "DisplayName", "ItemName", "ToolName", "PickaxeName", "Id", "PickaxeId" }) do
+			local ok, value = pcall(function()
+				return tool:GetAttribute(attributeName)
+			end)
+			if ok then
+				add(value)
 			end
 		end
 	end
 
+	return variants
+end
+
+function State.GetHotbarSlotForTool(tool, backpack)
+	if not (tool and backpack) then
+		return nil
+	end
+
+	local slot = 0
+	for _, child in ipairs(backpack:GetChildren()) do
+		if child:IsA("Tool") then
+			slot += 1
+			if child == tool then
+				return slot <= #DIG_HOTBAR_KEY_CODES and slot or nil
+			end
+		end
+	end
+
+	return nil
+end
+
+function State.PressHotbarSlot(slot)
+	local keyCode = DIG_HOTBAR_KEY_CODES[slot]
+	if not keyCode then
+		return false
+	end
+
+	if State.VirtualInputManager == nil then
+		local ok, service = pcall(function()
+			return game:GetService("VirtualInputManager")
+		end)
+		State.VirtualInputManager = ok and service or false
+	end
+
+	local virtualInput = State.VirtualInputManager
+	if not virtualInput then
+		return false
+	end
+
+	local ok = pcall(function()
+		virtualInput:SendKeyEvent(true, keyCode, false, game)
+		task.wait(0.03)
+		virtualInput:SendKeyEvent(false, keyCode, false, game)
+	end)
+	return ok
+end
+
+function State.WaitForToolParent(tool, parent, timeout)
+	local deadline = os.clock() + (timeout or 0.2)
+	while tool and parent and tool.Parent ~= parent and os.clock() < deadline do
+		task.wait()
+	end
+	return tool and tool.Parent == parent
+end
+
+function State.FindToolInCharacterAndBackpack(predicate)
+	local character = LocalPlayer and LocalPlayer.Character
+	local backpack = State.GetPlayerBackpack and State.GetPlayerBackpack()
+
 	if character then
 		for _, child in ipairs(character:GetChildren()) do
-			if State.IsDigTool and State.IsDigTool(child, true) then
+			if predicate(child, character) then
 				return child
 			end
 		end
@@ -3112,13 +3449,114 @@ function State.GetDigTool()
 
 	if backpack then
 		for _, child in ipairs(backpack:GetChildren()) do
-			if State.IsDigTool and State.IsDigTool(child) then
+			if predicate(child, backpack) then
 				return child
 			end
 		end
 	end
 
 	return nil
+end
+
+function State.GetWhitelistedPickaxeRank(tool)
+	if not (tool and tool:IsA("Tool")) then
+		return nil
+	end
+
+	for _, name in ipairs(State.GetToolNameVariants(tool)) do
+		local rank = DIG_PICKAXE_PRIORITY[canonicalDigToolName(name)]
+		if rank then
+			return rank
+		end
+	end
+
+	return nil
+end
+
+function State.GetWhitelistedPickaxe()
+	local now = os.clock()
+	local character = LocalPlayer and LocalPlayer.Character
+	local backpack = State.GetPlayerBackpack and State.GetPlayerBackpack()
+	local cachedTool = State.DigToolCache
+
+	if cachedTool and (cachedTool.Parent == character or cachedTool.Parent == backpack) then
+		local cachedRank = State.GetWhitelistedPickaxeRank(cachedTool)
+		if cachedRank and (cachedRank == 1 or now - (State.DigToolCacheTick or 0) < DIG_PICKAXE_SCAN_INTERVAL) then
+			return cachedTool
+		end
+	end
+
+	if now - (State.DigToolCacheTick or 0) < DIG_PICKAXE_SCAN_INTERVAL then
+		return nil
+	end
+
+	State.DigToolCacheTick = now
+	State.DigToolCache = nil
+
+	local bestTool = nil
+	local bestRank = nil
+
+	local function scan(container)
+		if not container then
+			return
+		end
+
+		for _, child in ipairs(container:GetChildren()) do
+			local rank = State.GetWhitelistedPickaxeRank(child)
+			if rank and (not bestRank or rank < bestRank) then
+				bestTool = child
+				bestRank = rank
+				if rank == 1 then
+					return true
+				end
+			end
+		end
+
+		return false
+	end
+
+	if scan(character) then
+		State.DigToolCache = bestTool
+		return bestTool
+	end
+
+	scan(backpack)
+	State.DigToolCache = bestTool
+
+	return bestTool
+end
+
+function State.UnequipNonWhitelistedDigTool(character)
+	character = character or (LocalPlayer and LocalPlayer.Character)
+	if not character then
+		return false
+	end
+
+	local hasWrongTool = false
+	for _, child in ipairs(character:GetChildren()) do
+		if child:IsA("Tool") and not State.GetWhitelistedPickaxeRank(child) then
+			hasWrongTool = true
+			break
+		end
+	end
+
+	if not hasWrongTool then
+		return false
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return false
+	end
+
+	pcall(function()
+		humanoid:UnequipTools()
+	end)
+	return true
+end
+
+function State.GetDigTool()
+	return State.GetWhitelistedPickaxe and State.GetWhitelistedPickaxe() or nil
 end
 
 function State.GetDigToolName()
@@ -3130,13 +3568,16 @@ function State.EnsureDigToolEquipped()
 	local tool = State.GetDigTool()
 	local character = LocalPlayer and LocalPlayer.Character
 	if not tool then
-		if State.BoulderLevelFarmEnabled and character then
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			if humanoid then
-				pcall(function()
-					humanoid:UnequipTools()
-				end)
+		if State.BoulderLevelFarmEnabled or State.DigReplayEnabled then
+			local now = os.clock()
+			if now - (State.LastWrongDigToolUnequipTick or 0) >= DIG_WRONG_TOOL_UNEQUIP_INTERVAL then
+				State.LastWrongDigToolUnequipTick = now
+				State.UnequipNonWhitelistedDigTool(character)
 			end
+		end
+		if State.BoulderLevelFarmEnabled and os.clock() - (State.LastDigToolStatusTick or 0) > 2 then
+			State.LastDigToolStatusTick = os.clock()
+			setStatus("Pickaxe not found in Backpack/hotbar", Theme.Bad)
 		end
 		return false
 	end
@@ -3154,25 +3595,52 @@ function State.EnsureDigToolEquipped()
 		return false
 	end
 
-	if State.BoulderLevelFarmEnabled then
-		pcall(function()
-			humanoid:UnequipTools()
-		end)
-		task.wait(0.05)
+	local now = os.clock()
+	if now - (State.LastDigToolEquipAttemptTick or 0) < DIG_TOOL_EQUIP_RETRY_INTERVAL then
+		return false
 	end
+	State.LastDigToolEquipAttemptTick = now
+
+	local backpack = State.GetPlayerBackpack and State.GetPlayerBackpack()
+	if backpack and tool.Parent ~= backpack and tool.Parent ~= character then
+		pcall(function()
+			tool.Parent = backpack
+		end)
+		task.wait()
+	end
+
+	pcall(function()
+		humanoid:UnequipTools()
+	end)
+	task.wait(0.03)
 
 	pcall(function()
 		humanoid:EquipTool(tool)
 	end)
-	if State.BoulderLevelFarmEnabled then
-		task.wait(0.05)
-		if tool.Parent ~= character then
-			pcall(function()
-				tool.Parent = character
-			end)
+
+	if State.WaitForToolParent(tool, character, 0.18) then
+		return true
+	end
+
+	if backpack and tool.Parent == backpack then
+		local slot = State.GetHotbarSlotForTool(tool, backpack)
+		if slot and State.PressHotbarSlot(slot) and State.WaitForToolParent(tool, character, 0.18) then
+			return true
 		end
 	end
-	return tool.Parent == character
+
+	if tool.Parent ~= character then
+		pcall(function()
+			tool.Parent = character
+		end)
+	end
+
+	local equipped = State.WaitForToolParent(tool, character, 0.18)
+	if not equipped and State.BoulderLevelFarmEnabled and os.clock() - (State.LastDigToolStatusTick or 0) > 2 then
+		State.LastDigToolStatusTick = os.clock()
+		setStatus("Could not equip pickaxe: " .. tostring(tool.Name), Theme.Bad)
+	end
+	return equipped
 end
 
 function State.GetDigBoulderDisplayName(target)
@@ -3187,7 +3655,7 @@ function State.GetDigBoulderDisplayName(target)
 end
 
 function State.CanonicalShopToolName(value)
-	return (tostring(value or ""):lower():gsub("[%s%p_]+", ""))
+	return canonicalDigToolName(value)
 end
 
 function State.AddPickaxeShopName(nameSet, value)
@@ -3263,9 +3731,26 @@ function State.GetPickaxeShopNameSet()
 		end
 	end
 
+	for _, fallbackName in ipairs({ "The Terminus" }) do
+		State.AddPickaxeShopName(nameSet, fallbackName)
+	end
+
 	State.PickaxeShopNameSet = nameSet
 	State.PickaxeShopNameSetTick = os.clock()
 	return nameSet
+end
+
+function State.IsBlockedDigToolName(name)
+	name = tostring(name or "")
+	local lowerName = name:lower()
+	return lowerName:find("rune", 1, true)
+		or lowerName:find("bomb", 1, true)
+		or lowerName:find("radar", 1, true)
+		or lowerName == "push"
+		or lowerName == "luck"
+		or lowerName == "colossal"
+		or lowerName == "detonation"
+		or lowerName == "fortune"
 end
 
 function State.IsDigTool(tool, allowBracket)
@@ -3275,21 +3760,58 @@ function State.IsDigTool(tool, allowBracket)
 
 	local name = tostring(tool.Name or "")
 	return (allowBracket == true or not name:find("[", 1, true))
-		and not name:find("Rune", 1, true)
-		and not name:find("Bomb", 1, true)
-		and name ~= "Push"
+		and not State.IsBlockedDigToolName(name)
 end
 
-function State.IsPickaxeShopTool(tool, nameSet)
-	if not State.IsDigTool(tool) then
+function State.IsCrystalInventoryTool(tool)
+	if not (tool and tool:IsA("Tool")) then
 		return false
 	end
 
-	if nameSet and nameSet[State.CanonicalShopToolName(tool.Name)] then
+	for _, attributeName in ipairs({ "WeightKg", "LuckKg", "CrystalLuck", "Tier", "Mutation", "BombCrystal", "IsBloodCrystal" }) do
+		if tool:GetAttribute(attributeName) ~= nil then
+			return true
+		end
+	end
+
+	return false
+end
+
+function State.ToolMatchesPickaxeNameSet(tool, nameSet)
+	if not nameSet then
+		return false
+	end
+
+	for _, name in ipairs(State.GetToolNameVariants(tool)) do
+		if nameSet[State.CanonicalShopToolName(name)] then
+			return true
+		end
+	end
+
+	return false
+end
+
+function State.HasPickaxeNameHint(tool)
+	for _, name in ipairs(State.GetToolNameVariants(tool)) do
+		local lowerName = name:lower()
+		if lowerName:find("pickaxe", 1, true) or lowerName:find("pick axe", 1, true) then
+			return true
+		end
+	end
+
+	return false
+end
+
+function State.IsPickaxeShopTool(tool, nameSet)
+	if not State.IsDigTool(tool, true) or State.IsCrystalInventoryTool(tool) then
+		return false
+	end
+
+	if State.ToolMatchesPickaxeNameSet(tool, nameSet) or State.HasPickaxeNameHint(tool) then
 		return true
 	end
 
-	for _, attributeName in ipairs({ "Power", "MineSize", "Mine Size", "Pickaxe", "PickaxeId", "Rarity" }) do
+	for _, attributeName in ipairs({ "Power", "MinePower", "MiningPower", "MineSize", "Mine Size", "Pickaxe", "PickaxeId" }) do
 		if tool:GetAttribute(attributeName) ~= nil then
 			return true
 		end
@@ -3826,6 +4348,8 @@ function State.SetBoulderLevelFarmLevel(level, persist, selected)
 	Config.BoulderLevelFarmLevels = State.GetSelectedBoulderLevelNames()
 	State.BoulderHopNoTargetSince = nil
 	State.LastBoulderHopTick = 0
+	State.BoulderRejoinNoTargetSince = nil
+	State.LastBoulderRejoinTick = 0
 	State.UpdateBoulderLevelDropdownText()
 	if persist ~= false then
 		State.SaveConfig()
@@ -3923,13 +4447,18 @@ function State.IsBoulderLevelFarmMatch(target)
 end
 
 function State.GetBoulderLevelFarmPosition(target)
-	local position = State.GetBoulderDigPosition(target)
-	if not position then
-		local cframe = getBoulderTargetCFrame(target)
-		position = cframe and cframe.Position or nil
+	if target and target:IsA("Model") then
+		local ok, boxCFrame, boxSize = pcall(function()
+			return target:GetBoundingBox()
+		end)
+		if ok and boxCFrame and boxSize then
+			local underOffset = tonumber(Config.BoulderLevelFarmUnderOffset) or 6
+			return boxCFrame.Position - Vector3.new(0, (boxSize.Y * 0.5) + underOffset, 0)
+		end
 	end
 
-	return position and (position + Vector3.new(0, 3, 0)) or nil
+	local cframe = getBoulderTargetCFrame(target)
+	return cframe and (cframe.Position - Vector3.new(0, tonumber(Config.BoulderLevelFarmUnderOffset) or 6, 0)) or nil
 end
 
 function State.GetNextBoulderLevelFarmTarget()
@@ -4155,6 +4684,26 @@ function State.UpdateBoulderHopButton()
 	end
 end
 
+function State.UpdateBoulderRejoinButton()
+	if not UI.BoulderRejoinButton then
+		return
+	end
+
+	if not State.IsLockedScriptUnlocked() then
+		UI.BoulderRejoinButton.Text = "RJ LOCK"
+		UI.BoulderRejoinButton.BackgroundColor3 = Theme.ButtonDark
+		return
+	end
+
+	if State.BoulderRejoinEnabled then
+		UI.BoulderRejoinButton.Text = "RJ ON"
+		UI.BoulderRejoinButton.BackgroundColor3 = Theme.Good
+	else
+		UI.BoulderRejoinButton.Text = "RJ OFF"
+		UI.BoulderRejoinButton.BackgroundColor3 = Theme.ButtonDark
+	end
+end
+
 function State.SetBoulderHopEnabled(enabled, persist)
 	if enabled == true and not State.IsLockedScriptUnlocked() then
 		State.BoulderHopEnabled = false
@@ -4162,6 +4711,10 @@ function State.SetBoulderHopEnabled(enabled, persist)
 		State.BoulderHopNoTargetSince = nil
 		State.UpdateBoulderHopButton()
 		return State.ShowLockedScriptMessage()
+	end
+
+	if enabled == true and State.BoulderRejoinEnabled then
+		State.SetBoulderRejoinEnabled(false, false)
 	end
 
 	State.BoulderHopEnabled = enabled == true
@@ -4174,6 +4727,31 @@ function State.SetBoulderHopEnabled(enabled, persist)
 		State.SaveConfig()
 	end
 	return State.BoulderHopEnabled
+end
+
+function State.SetBoulderRejoinEnabled(enabled, persist)
+	if enabled == true and not State.IsLockedScriptUnlocked() then
+		State.BoulderRejoinEnabled = false
+		State.BoulderRejoining = false
+		State.BoulderRejoinNoTargetSince = nil
+		State.UpdateBoulderRejoinButton()
+		return State.ShowLockedScriptMessage()
+	end
+
+	if enabled == true and State.BoulderHopEnabled then
+		State.SetBoulderHopEnabled(false, false)
+	end
+
+	State.BoulderRejoinEnabled = enabled == true
+	State.BoulderRejoining = false
+	State.BoulderRejoinNoTargetSince = nil
+	State.LastBoulderRejoinTick = 0
+	State.UpdateBoulderRejoinButton()
+	setStatus(State.BoulderRejoinEnabled and "Boulder empty rejoin ON" or "Boulder empty rejoin OFF", State.BoulderRejoinEnabled and Theme.Good or Theme.Muted)
+	if persist ~= false then
+		State.SaveConfig()
+	end
+	return State.BoulderRejoinEnabled
 end
 
 function State.HopServer(sort)
@@ -4241,18 +4819,22 @@ function State.HopServer(sort)
 	return false
 end
 
-function State.TryBoulderEmptyHop()
-	if not State.BoulderHopEnabled or State.BoulderHopTeleporting then
-		return
-	end
-
+function State.CountBoulderLevelFarmMatches()
 	local matchingTargets = 0
 	for _, target in ipairs(getDigBoulderTargets()) do
 		if State.IsBoulderLevelFarmMatch(target) then
 			matchingTargets += 1
 		end
 	end
+	return matchingTargets
+end
 
+function State.TryBoulderEmptyHop()
+	if not State.BoulderHopEnabled or State.BoulderHopTeleporting then
+		return
+	end
+
+	local matchingTargets = State.CountBoulderLevelFarmMatches()
 	if matchingTargets > 0 then
 		State.BoulderHopNoTargetSince = nil
 		return
@@ -4280,6 +4862,67 @@ function State.TryBoulderEmptyHop()
 	end)
 end
 
+function State.RejoinCurrentServer()
+	if not State.IsLockedScriptUnlocked() then
+		return State.ShowLockedScriptMessage()
+	end
+
+	if State.BoulderRejoining then
+		return false
+	end
+
+	State.BoulderRejoining = true
+	setStatus("Rejoining in 2s...", Theme.Good)
+	pcall(function()
+		LocalPlayer:Kick("Rejoining...")
+	end)
+	task.wait(2)
+
+	local ok = pcall(function()
+		TeleportService:Teleport(game.PlaceId, LocalPlayer)
+	end)
+	if not ok then
+		State.BoulderRejoining = false
+		setStatus("Rejoin teleport failed", Theme.Bad)
+		return false
+	end
+
+	return true
+end
+
+function State.TryBoulderEmptyRejoin()
+	if not State.BoulderRejoinEnabled or State.BoulderRejoining then
+		return
+	end
+
+	local matchingTargets = State.CountBoulderLevelFarmMatches()
+	if matchingTargets > 0 then
+		State.BoulderRejoinNoTargetSince = nil
+		return
+	end
+
+	local now = os.clock()
+	if not State.BoulderRejoinNoTargetSince then
+		State.BoulderRejoinNoTargetSince = now
+		setStatus("No " .. State.GetBoulderLevelSummary() .. " boulder, waiting before rejoin", Theme.Muted)
+		return
+	end
+	if now - State.BoulderRejoinNoTargetSince < (Config.BoulderHopEmptyDelay or 2) then
+		return
+	end
+
+	setStatus(State.GetBoulderLevelSummary() .. " boulders empty, rejoining", Theme.Good)
+	task.spawn(function()
+		local ok, result = pcall(function()
+			return State.RejoinCurrentServer()
+		end)
+		if not ok or result ~= true then
+			State.BoulderRejoining = false
+			State.BoulderRejoinNoTargetSince = os.clock()
+		end
+	end)
+end
+
 function State.BoulderHopHeartbeat()
 	if not State.BoulderHopEnabled then
 		return
@@ -4291,6 +4934,19 @@ function State.BoulderHopHeartbeat()
 	end
 	State.LastBoulderHopTick = now
 	State.TryBoulderEmptyHop()
+end
+
+function State.BoulderRejoinHeartbeat()
+	if not State.BoulderRejoinEnabled then
+		return
+	end
+
+	local now = os.clock()
+	if now - State.LastBoulderRejoinTick < (Config.BoulderHopInterval or 1) then
+		return
+	end
+	State.LastBoulderRejoinTick = now
+	State.TryBoulderEmptyRejoin()
 end
 
 local function getSelectedBombNames()
@@ -7069,6 +7725,7 @@ connect(UserInputService.JumpRequest, State.InfiniteJumpRequest)
 connect(RunService.Heartbeat, boulderTeleportHeartbeat)
 connect(RunService.Heartbeat, boulderPromptHeartbeat)
 connect(RunService.Heartbeat, State.BoulderHopHeartbeat)
+connect(RunService.Heartbeat, State.BoulderRejoinHeartbeat)
 connect(RunService.Heartbeat, State.BuyRadarHeartbeat)
 
 connect(Workspace.DescendantAdded, function(object)
@@ -7413,6 +8070,19 @@ connect(UI.BoulderHopButton.Activated, function()
 	State.SetBoulderHopEnabled(not State.BoulderHopEnabled)
 end)
 
+connect(UI.BoulderRejoinButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	State.SetBoulderRejoinEnabled(not State.BoulderRejoinEnabled)
+end)
+
 connect(BombDropdownButton.Activated, function()
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
@@ -7520,6 +8190,7 @@ connect(CloseButton.Activated, function()
 	setBoulderPromptEnabled(false)
 	State.SetBoulderLevelFarmEnabled(false)
 	State.SetBoulderHopEnabled(false)
+	State.SetBoulderRejoinEnabled(false)
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
 	PlayerDropdownList.Visible = false
@@ -7592,6 +8263,7 @@ function State.Stop()
 	setBoulderPromptEnabled(false)
 	State.SetBoulderLevelFarmEnabled(false)
 	State.SetBoulderHopEnabled(false)
+	State.SetBoulderRejoinEnabled(false)
 end
 
 function State.StartFarm(mode, threshold)
@@ -7895,6 +8567,18 @@ function State.StopBoulderHop()
 	return State.SetBoulderHopEnabled(false)
 end
 
+function State.SetBoulderRejoin(enabled)
+	return State.SetBoulderRejoinEnabled(enabled)
+end
+
+function State.StartBoulderRejoin()
+	return State.SetBoulderRejoinEnabled(true)
+end
+
+function State.StopBoulderRejoin()
+	return State.SetBoulderRejoinEnabled(false)
+end
+
 function State.SetRuneFirePrompt(enabled)
 	setBoulderPromptEnabled(enabled)
 	return State.BoulderPromptEnabled
@@ -8117,6 +8801,9 @@ function State.ApplySavedConfigStarts()
 	if Config.BoulderHopStart then
 		State.SetBoulderHopEnabled(true, false)
 	end
+	if Config.BoulderRejoinStart then
+		State.SetBoulderRejoinEnabled(true, false)
+	end
 	if Config.FarmStart then
 		setFarming(true, false)
 	end
@@ -8152,6 +8839,7 @@ function State.Destroy()
 	setBoulderPromptEnabled(false, false)
 	State.SetBoulderLevelFarmEnabled(false, false)
 	State.SetBoulderHopEnabled(false, false)
+	State.SetBoulderRejoinEnabled(false, false)
 	for _, connection in ipairs(State.Connections) do
 		pcall(function()
 			connection:Disconnect()
@@ -8187,6 +8875,7 @@ updateBoulderPromptButton()
 State.UpdateBoulderLevelDropdownText()
 State.UpdateBoulderLevelFarmButton()
 State.UpdateBoulderHopButton()
+State.UpdateBoulderRejoinButton()
 RuneDrop.UpdateDropdownText()
 State.UpdateGearShopBuyAllButton()
 State.UpdateBuyBombButtonText()
@@ -8203,6 +8892,7 @@ if Config.FarmStart
 	or Config.BoulderPromptStart
 	or Config.BoulderLevelFarmStart
 	or Config.BoulderHopStart
+	or Config.BoulderRejoinStart
 	or Config.DigReplayStart
 	or Config.NoclipStart
 	or Config.FloatStart
