@@ -10,6 +10,16 @@ do
 local AllowedUsers = {
 	LockedScriptUsers = {
 		mxnkyhpc5015 = true,
+		FERN_18157 = true, --ลูกค้า
+		zonebuxx29 = true, --ลูกค้า
+		Sleep223450 = true, --ลูกค้า
+		m4rymeqw = true, --มิวสิค
+		Achirada3 = true, --ลูกค้า
+		fewkung2580 = true, --ลูกค้า
+		Abox0611 = true, --เด็กจ้าง
+		guplqqeb = true, --เด็กจ้าง
+		ufmn88zmuh19 = true, --ให้เทส
+		Tans24fe = true --ลูกค้า
 	},
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
@@ -91,6 +101,9 @@ local Config = {
 	BoulderLevelFarmUpDistance = 300,
 	BoulderLevelFarmForwardDistance = 1800,
 	BoulderLevelFarmSpeed = 300,
+	BoulderLevelFarmReturnDistance = 25,
+	BoulderLevelFarmTweenInterval = 0.1,
+	BoulderLevelFarmNextDelay = 1.5,
 	DigReplayStart = false,
 	NoclipStart = false,
 	FloatStart = false,
@@ -3003,8 +3016,27 @@ local function getBoulderRarityRank(target)
 	return number or 0
 end
 
-local function sortBouldersByRarity(targets)
+local function sortBouldersByDistance(targets)
+	local _, root = getCharacterParts(LocalPlayer)
+
 	table.sort(targets, function(left, right)
+		local leftCFrame = getBoulderTargetCFrame(left)
+		local rightCFrame = getBoulderTargetCFrame(right)
+		if not leftCFrame then
+			return false
+		end
+		if not rightCFrame then
+			return true
+		end
+
+		if root then
+			local leftDistance = (leftCFrame.Position - root.Position).Magnitude
+			local rightDistance = (rightCFrame.Position - root.Position).Magnitude
+			if leftDistance ~= rightDistance then
+				return leftDistance < rightDistance
+			end
+		end
+
 		local leftRank = getBoulderRarityRank(left)
 		local rightRank = getBoulderRarityRank(right)
 		if leftRank ~= rightRank then
@@ -3017,15 +3049,6 @@ local function sortBouldersByRarity(targets)
 			return leftLabel < rightLabel
 		end
 
-		local leftCFrame = getBoulderTargetCFrame(left)
-		local rightCFrame = getBoulderTargetCFrame(right)
-		if not leftCFrame then
-			return false
-		end
-		if not rightCFrame then
-			return true
-		end
-
 		return leftCFrame.Position.Y > rightCFrame.Position.Y
 	end)
 
@@ -3033,7 +3056,7 @@ local function sortBouldersByRarity(targets)
 end
 
 local function getDigBoulderTargets()
-	return sortBouldersByRarity(getBoulderTargets())
+	return sortBouldersByDistance(getBoulderTargets())
 end
 
 local function getSelectedBoulderTarget()
@@ -3086,6 +3109,8 @@ function State.GetDigTool()
 				end
 			end
 		end
+
+		return nil
 	end
 
 	if character then
@@ -3115,8 +3140,20 @@ end
 function State.EnsureDigToolEquipped()
 	local tool = State.GetDigTool()
 	local character = LocalPlayer and LocalPlayer.Character
-	if not (tool and character) or tool.Parent == character then
-		return tool ~= nil
+	if not tool then
+		if State.BoulderLevelFarmEnabled and character then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				pcall(function()
+					humanoid:UnequipTools()
+				end)
+			end
+		end
+		return false
+	end
+
+	if not character or tool.Parent == character then
+		return true
 	end
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -3229,9 +3266,11 @@ function State.IsDigTool(tool, allowBracket)
 	end
 
 	local name = tostring(tool.Name or "")
+	local lowerName = name:lower()
 	return (allowBracket == true or not name:find("[", 1, true))
-		and not name:find("Rune", 1, true)
-		and not name:find("Bomb", 1, true)
+		and not lowerName:find("rune", 1, true)
+		and not lowerName:find("bomb", 1, true)
+		and not lowerName:find("radar", 1, true)
 		and name ~= "Push"
 end
 
@@ -3240,8 +3279,8 @@ function State.IsPickaxeShopTool(tool, nameSet)
 		return false
 	end
 
-	if nameSet and nameSet[State.CanonicalShopToolName(tool.Name)] then
-		return true
+	if nameSet then
+		return nameSet[State.CanonicalShopToolName(tool.Name)] == true
 	end
 
 	for _, attributeName in ipairs({ "Power", "MineSize", "Mine Size", "Pickaxe", "PickaxeId", "Rarity" }) do
@@ -3779,6 +3818,8 @@ function State.SetBoulderLevelFarmLevel(level, persist, selected)
 	State.SelectedBoulderLevel = State.GetBoulderLevelSummary()
 	Config.BoulderLevelFarmLevel = State.SelectedBoulderLevel
 	Config.BoulderLevelFarmLevels = State.GetSelectedBoulderLevelNames()
+	State.BoulderHopNoTargetSince = nil
+	State.LastBoulderHopTick = 0
 	State.UpdateBoulderLevelDropdownText()
 	if persist ~= false then
 		State.SaveConfig()
@@ -3875,13 +3916,42 @@ function State.IsBoulderLevelFarmMatch(target)
 	return State.SelectedBoulderLevels[State.GetBoulderLevelName(target)] == true
 end
 
+function State.GetBoulderLevelFarmPosition(target)
+	local position = State.GetBoulderDigPosition(target)
+	if not position then
+		local cframe = getBoulderTargetCFrame(target)
+		position = cframe and cframe.Position or nil
+	end
+
+	return position and (position + Vector3.new(0, 3, 0)) or nil
+end
+
 function State.GetNextBoulderLevelFarmTarget()
+	local _, root = getCharacterParts(LocalPlayer)
+	local nearestTarget = nil
+	local nearestDistance = math.huge
+	local fallbackTarget = nil
+
 	for _, target in ipairs(getDigBoulderTargets()) do
 		if State.IsBoulderLevelFarmMatch(target) then
-			return target
+			if not fallbackTarget then
+				fallbackTarget = target
+			end
+
+			if root then
+				local position = State.GetBoulderLevelFarmPosition(target)
+				if position then
+					local distance = (root.Position - position).Magnitude
+					if distance < nearestDistance then
+						nearestDistance = distance
+						nearestTarget = target
+					end
+				end
+			end
 		end
 	end
-	return nil
+
+	return nearestTarget or fallbackTarget
 end
 
 function State.TweenBoulderLevelFarmToPosition(position)
@@ -3944,12 +4014,7 @@ function State.TweenBoulderLevelFarmToTarget(target)
 		return false
 	end
 
-	local position = State.GetBoulderDigPosition(target)
-	if not position then
-		local cframe = getBoulderTargetCFrame(target)
-		position = cframe and cframe.Position or nil
-	end
-	return position and State.TweenBoulderLevelFarmToPosition(position + Vector3.new(0, 3, 0)) or false
+	return State.TweenBoulderLevelFarmToPosition(State.GetBoulderLevelFarmPosition(target))
 end
 
 function State.RunBoulderLevelFarmLoop()
@@ -3960,23 +4025,59 @@ function State.RunBoulderLevelFarmLoop()
 	State.BoulderLevelFarmThreadRunning = true
 	task.spawn(function()
 		while State.BoulderLevelFarmEnabled do
-			local target = State.GetNextBoulderLevelFarmTarget()
-			if target then
-				State.BoulderLevelFarmTarget = target
-				State.SetDigBoulderTarget(target, false)
-				setStatus("Tween to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
-				if State.TweenBoulderLevelFarmToTarget(target) and State.BoulderLevelFarmEnabled and target.Parent and State.GetSelectedDigBoulderTarget() == target then
-					State.SetDigReplayEnabled(true, false)
-					setStatus("Level farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
+			if State.BoulderLevelFarmPrimed or State.PrimeBoulderLevelFarmRoute() then
+				local target = State.GetNextBoulderLevelFarmTarget()
+				if target then
+					State.BoulderLevelFarmTarget = target
+					State.SetDigBoulderTarget(target, false)
+					setStatus("Tween to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
+					State.TweenBoulderLevelFarmToTarget(target)
 					while State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() == target and target.Parent and State.IsBoulderLevelFarmMatch(target) do
-						task.wait(0.2)
+						local _, root = getCharacterParts(LocalPlayer)
+						local position = State.GetBoulderLevelFarmPosition(target)
+						if not position then
+							break
+						end
+
+						if root then
+							local distance = (root.Position - position).Magnitude
+							if distance > (Config.BoulderLevelFarmReturnDistance or 25) then
+								if State.DigReplayEnabled then
+									State.SetDigReplayEnabled(false, false)
+									setStatus("Returning to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
+								end
+							elseif not State.DigReplayEnabled then
+								State.SetDigReplayEnabled(true, false)
+								setStatus("Level farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
+							end
+						end
+
+						if not State.TweenBoulderLevelFarmToPosition(position) and not State.BoulderLevelFarmEnabled then
+							break
+						end
+
+						if State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() == target and target.Parent and State.IsBoulderLevelFarmMatch(target) then
+							if not State.DigReplayEnabled then
+								State.SetDigReplayEnabled(true, false)
+								setStatus("Level farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
+							end
+						end
+
+						task.wait(Config.BoulderLevelFarmTweenInterval or 0.1)
 					end
 					State.SetDigReplayEnabled(false, false)
+					if State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() ~= target then
+						setStatus("Boulder gone, waiting before next", Theme.Muted)
+						task.wait(Config.BoulderLevelFarmNextDelay or 1.5)
+					end
+				else
+					State.SetDigReplayEnabled(false, false)
+					setStatus("No boulder level: " .. State.GetBoulderLevelSummary(), Theme.Muted)
+					task.wait(1)
 				end
 			else
 				State.SetDigReplayEnabled(false, false)
-				setStatus("No boulder level: " .. State.GetBoulderLevelSummary(), Theme.Muted)
-				task.wait(1)
+				task.wait(0.5)
 			end
 			task.wait(0.1)
 		end
@@ -4132,12 +4233,15 @@ function State.TryBoulderEmptyHop()
 	if not State.BoulderHopEnabled or State.BoulderHopTeleporting then
 		return
 	end
-	if not getBouldersFolder() then
-		State.BoulderHopNoTargetSince = nil
-		return
+
+	local matchingTargets = 0
+	for _, target in ipairs(getDigBoulderTargets()) do
+		if State.IsBoulderLevelFarmMatch(target) then
+			matchingTargets += 1
+		end
 	end
 
-	if #getDigBoulderTargets() > 0 then
+	if matchingTargets > 0 then
 		State.BoulderHopNoTargetSince = nil
 		return
 	end
@@ -4145,14 +4249,14 @@ function State.TryBoulderEmptyHop()
 	local now = os.clock()
 	if not State.BoulderHopNoTargetSince then
 		State.BoulderHopNoTargetSince = now
-		setStatus("No boulder found, waiting before hop", Theme.Muted)
+		setStatus("No " .. State.GetBoulderLevelSummary() .. " boulder, waiting before hop", Theme.Muted)
 		return
 	end
 	if now - State.BoulderHopNoTargetSince < (Config.BoulderHopEmptyDelay or 2) then
 		return
 	end
 
-	setStatus("Boulders empty, hopping server", Theme.Good)
+	setStatus(State.GetBoulderLevelSummary() .. " boulders empty, hopping server", Theme.Good)
 	task.spawn(function()
 		local ok, result = pcall(function()
 			return State.HopServer(Config.BoulderHopSort or "Asc")
