@@ -10,16 +10,6 @@ do
 local AllowedUsers = {
 	LockedScriptUsers = {
 		mxnkyhpc5015 = true,
-		FERN_18157 = true, --ลูกค้า
-		zonebuxx29 = true, --ลูกค้า
-		Sleep223450 = true, --ลูกค้า
-		m4rymeqw = true, --มิวสิค
-		Achirada3 = true, --ลูกค้า
-		fewkung2580 = true, --ลูกค้า
-		Abox0611 = true, --เด็กจ้าง
-		guplqqeb = true, --เด็กจ้าง
-		ufmn88zmuh19 = true, --ให้เทส
-		Tans24fe = true --ลูกค้า
 	},
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
@@ -285,7 +275,7 @@ local function cleanupPreviousState(previousState)
 	else
 		if type(previousState.Stop) == "function" then
 			pcall(function()
-				previousState.Stop(false)
+				previousState.Stop()
 			end)
 		end
 		for _, connection in ipairs(previousState.Connections or {}) do
@@ -401,7 +391,7 @@ if next(State.SelectedBoulderLevels) == nil then
 	State.SelectedBoulderLevels.All = true
 end
 
-function State.SaveConfig(preserveRuntimeStarts)
+function State.SaveConfig()
 	if type(writefile) ~= "function" then
 		return false
 	end
@@ -461,28 +451,26 @@ function State.SaveConfig(preserveRuntimeStarts)
 	Config.RuneItemNames = selectedRuneNames
 	Config.RuneDropAmount = State.RuneDropAmount or 1
 	Config.MoneyDropThresholdText = State.MoneyDropThresholdText or ""
-	if preserveRuntimeStarts ~= true then
-		Config.GearShopBuyAll = State.GearShopBuyAll == true
-		Config.GearShopAutoBuyEnabled = State.BuyingBomb == true
-		Config.GearShopStartBuy = State.BuyingBomb == true
-		Config.RadarShopBuyAll = State.RadarShopBuyAll == true
-		Config.RadarShopAutoBuyEnabled = State.BuyingRadar == true
-		Config.RadarShopStartBuy = State.BuyingRadar == true
-		Config.FarmStart = State.Farming == true
-		Config.PlayerTeleportStart = State.PlayerTeleporting == true
-		Config.BoulderTeleportStart = State.BoulderTeleporting == true
-		Config.BoulderEspStart = State.BoulderEspEnabled == true
-		Config.BoulderPromptStart = State.BoulderPromptEnabled == true
-		Config.BoulderLevelFarmStart = State.BoulderLevelFarmEnabled == true
-		Config.BoulderHopStart = State.BoulderHopEnabled == true
-		Config.DigReplayStart = State.DigReplayEnabled == true
-		Config.NoclipStart = State.NoclipEnabled == true
-		Config.FloatStart = State.Floating == true
-		Config.SpeedHackStart = State.SpeedHackEnabled == true
-		Config.InfiniteJumpStart = State.InfiniteJumpEnabled == true
-	end
+	Config.GearShopBuyAll = State.GearShopBuyAll == true
+	Config.GearShopAutoBuyEnabled = State.BuyingBomb == true
+	Config.GearShopStartBuy = State.BuyingBomb == true
+	Config.RadarShopBuyAll = State.RadarShopBuyAll == true
+	Config.RadarShopAutoBuyEnabled = State.BuyingRadar == true
+	Config.RadarShopStartBuy = State.BuyingRadar == true
+	Config.FarmStart = State.Farming == true
+	Config.PlayerTeleportStart = State.PlayerTeleporting == true
+	Config.BoulderTeleportStart = State.BoulderTeleporting == true
+	Config.BoulderEspStart = State.BoulderEspEnabled == true
+	Config.BoulderPromptStart = State.BoulderPromptEnabled == true
+	Config.BoulderLevelFarmStart = State.BoulderLevelFarmEnabled == true
+	Config.BoulderHopStart = State.BoulderHopEnabled == true
 	Config.BoulderLevelFarmLevels = selectedBoulderLevels
 	Config.BoulderLevelFarmLevel = selectedBoulderLevels[1] or "All"
+	Config.DigReplayStart = State.DigReplayEnabled == true
+	Config.NoclipStart = State.NoclipEnabled == true
+	Config.FloatStart = State.Floating == true
+	Config.SpeedHackStart = State.SpeedHackEnabled == true
+	Config.InfiniteJumpStart = State.InfiniteJumpEnabled == true
 	Config.Collapsed = State.Collapsed == true
 
 	local data = {
@@ -534,16 +522,16 @@ function State.SaveConfig(preserveRuntimeStarts)
 		InfiniteJumpStart = Config.InfiniteJumpStart,
 		InfiniteJumpEnabled = Config.InfiniteJumpStart,
 		Collapsed = Config.Collapsed,
-		GearShopBuyAll = Config.GearShopBuyAll == true,
-		GearShopAutoBuyEnabled = Config.GearShopAutoBuyEnabled == true,
-		GearShopStartBuy = Config.GearShopStartBuy == true,
-		StartBuy = Config.GearShopStartBuy == true,
+		GearShopBuyAll = State.GearShopBuyAll == true,
+		GearShopAutoBuyEnabled = State.BuyingBomb == true,
+		GearShopStartBuy = State.BuyingBomb == true,
+		StartBuy = State.BuyingBomb == true,
 		BombItemNames = selectedGearNames,
 		GearItemNames = selectedGearNames,
-		RadarShopBuyAll = Config.RadarShopBuyAll == true,
-		RadarShopAutoBuyEnabled = Config.RadarShopAutoBuyEnabled == true,
-		RadarShopStartBuy = Config.RadarShopStartBuy == true,
-		BuyRadarStart = Config.RadarShopStartBuy == true,
+		RadarShopBuyAll = State.RadarShopBuyAll == true,
+		RadarShopAutoBuyEnabled = State.BuyingRadar == true,
+		RadarShopStartBuy = State.BuyingRadar == true,
+		BuyRadarStart = State.BuyingRadar == true,
 		RadarItemNames = selectedRadarNames,
 		SelectedRadarItems = selectedRadarNames
 	}
@@ -2736,7 +2724,7 @@ local function setCollapsed(collapsed, persist)
 
 	clampMainToViewport(getCurrentMainPixelSize())
 	if persist ~= false then
-		State.SaveConfig(true)
+		State.SaveConfig()
 	end
 end
 
@@ -3091,73 +3079,23 @@ local function getBoulderTargetDisplayName(target)
 	return labels[target] or target.Name
 end
 
-function State.GetPreferredPickaxeTool()
-	local character = LocalPlayer and LocalPlayer.Character
-	local backpack = LocalPlayer and LocalPlayer:FindFirstChildOfClass("Backpack")
-	local preferredNames = {
-		"The Terminus",
-		"Astral Rend",
-		"Celestial Apex",
-		"Chipped Stone",
-		"Copper Pick",
-		"DIAMOND Pickaxe",
-		"Eclipse Fang",
-		"Emerald Carver",
-		"Frostbite Pick",
-		"Hardened Iron",
-		"Nebular Throne",
-		"Obsidian Edge",
-		"Reinforced Steel",
-		"Rusty Scrapper",
-		"Singularity",
-		"Tempest Pick",
-		"Titanium Spike",
-		"Voidreign",
-		"Volcano Basalt",
-		"Weathered Wood"
-	}
-
-	for _, itemName in ipairs(preferredNames) do
-		local wantedName = State.CanonicalShopToolName(itemName)
-		for _, container in ipairs({ character, backpack }) do
-			if container then
-				for _, child in ipairs(container:GetChildren()) do
-					local toolName = child:IsA("Tool") and State.CanonicalShopToolName(child.Name) or ""
-					if toolName == wantedName or toolName:sub(1, #wantedName) == wantedName then
-						return child
-					end
-				end
-			end
-		end
-	end
-
-	return nil
-end
-
 function State.GetDigTool()
 	local character = LocalPlayer and LocalPlayer.Character
 	local backpack = LocalPlayer and LocalPlayer:FindFirstChildOfClass("Backpack")
 	if State.BoulderLevelFarmEnabled then
-		local preferredTool = State.GetPreferredPickaxeTool and State.GetPreferredPickaxeTool()
-		if preferredTool then
-			return preferredTool
-		end
-
 		local nameSet = State.GetPickaxeShopNameSet and State.GetPickaxeShopNameSet()
-		for _, strictNames in ipairs({ true, false }) do
-			if character then
-				for _, child in ipairs(character:GetChildren()) do
-					if State.IsPickaxeShopTool and State.IsPickaxeShopTool(child, nameSet, strictNames) then
-						return child
-					end
+		if character then
+			for _, child in ipairs(character:GetChildren()) do
+				if State.IsPickaxeShopTool and State.IsPickaxeShopTool(child, nameSet) then
+					return child
 				end
 			end
+		end
 
-			if backpack then
-				for _, child in ipairs(backpack:GetChildren()) do
-					if State.IsPickaxeShopTool and State.IsPickaxeShopTool(child, nameSet, strictNames) then
-						return child
-					end
+		if backpack then
+			for _, child in ipairs(backpack:GetChildren()) do
+				if State.IsPickaxeShopTool and State.IsPickaxeShopTool(child, nameSet) then
+					return child
 				end
 			end
 		end
@@ -3326,25 +3264,16 @@ function State.IsDigTool(tool, allowBracket)
 		and name ~= "Push"
 end
 
-function State.IsPickaxeShopTool(tool, nameSet, strictNames)
+function State.IsPickaxeShopTool(tool, nameSet)
 	if not State.IsDigTool(tool) then
 		return false
 	end
 
-	if nameSet and nameSet[State.CanonicalShopToolName(tool.Name)] == true then
-		return true
+	if nameSet then
+		return nameSet[State.CanonicalShopToolName(tool.Name)] == true
 	end
 
-	if strictNames == true then
-		return false
-	end
-
-	local lowerName = tostring(tool.Name or ""):lower()
-	if lowerName:find("pickaxe", 1, true) or lowerName:find("drill", 1, true) then
-		return true
-	end
-
-	for _, attributeName in ipairs({ "Power", "MineSize", "Mine Size", "Pickaxe", "PickaxeId" }) do
+	for _, attributeName in ipairs({ "Power", "MineSize", "Mine Size", "Pickaxe", "PickaxeId", "Rarity" }) do
 		if tool:GetAttribute(attributeName) ~= nil then
 			return true
 		end
@@ -5051,11 +4980,9 @@ function State.SetBuyingRadar(enabled, persist)
 	if enabled == true and #purchaseItems == 0 then
 		State.BuyingRadar = false
 		State.RadarShopBuyAll = false
-		if persist ~= false then
-			Config.RadarShopBuyAll = false
-			Config.RadarShopAutoBuyEnabled = false
-			Config.RadarShopStartBuy = false
-		end
+		Config.RadarShopBuyAll = false
+		Config.RadarShopAutoBuyEnabled = false
+		Config.RadarShopStartBuy = false
 		State.UpdateRadarShopBuyAllButton()
 		State.UpdateBuyRadarButtonText()
 		State.UpdateRadarDropdownText()
@@ -5071,14 +4998,10 @@ function State.SetBuyingRadar(enabled, persist)
 	State.BuyingRadar = enabled == true
 	if not State.BuyingRadar and State.RadarShopBuyAll then
 		State.RadarShopBuyAll = false
-		if persist ~= false then
-			Config.RadarShopBuyAll = false
-		end
+		Config.RadarShopBuyAll = false
 	end
-	if persist ~= false then
-		Config.RadarShopAutoBuyEnabled = State.BuyingRadar
-		Config.RadarShopStartBuy = State.BuyingRadar
-	end
+	Config.RadarShopAutoBuyEnabled = State.BuyingRadar
+	Config.RadarShopStartBuy = State.BuyingRadar
 	State.UpdateRadarShopBuyAllButton()
 	State.UpdateBuyRadarButtonText()
 	State.UpdateRadarDropdownText()
@@ -5503,11 +5426,9 @@ local function setBuyingBomb(enabled, persist)
 	if enabled == true and #purchaseItems == 0 then
 		State.BuyingBomb = false
 		State.GearShopBuyAll = false
-		if persist ~= false then
-			Config.GearShopBuyAll = false
-			Config.GearShopAutoBuyEnabled = false
-			Config.GearShopStartBuy = false
-		end
+		Config.GearShopBuyAll = false
+		Config.GearShopAutoBuyEnabled = false
+		Config.GearShopStartBuy = false
 		State.UpdateGearShopBuyAllButton()
 		State.UpdateBuyBombButtonText()
 		updateBombDropdownText()
@@ -5524,14 +5445,10 @@ local function setBuyingBomb(enabled, persist)
 	State.BuyingBomb = enabled == true
 	if not State.BuyingBomb and State.GearShopBuyAll then
 		State.GearShopBuyAll = false
-		if persist ~= false then
-			Config.GearShopBuyAll = false
-		end
+		Config.GearShopBuyAll = false
 	end
-	if persist ~= false then
-		Config.GearShopAutoBuyEnabled = State.BuyingBomb
-		Config.GearShopStartBuy = State.BuyingBomb
-	end
+	Config.GearShopAutoBuyEnabled = State.BuyingBomb
+	Config.GearShopStartBuy = State.BuyingBomb
 	State.UpdateGearShopBuyAllButton()
 	State.UpdateBuyBombButtonText()
 	updateBombDropdownText()
@@ -7567,20 +7484,20 @@ connect(UI.BuyRadarButton.Activated, function()
 end)
 
 connect(CloseButton.Activated, function()
-	setFarming(false, false)
-	setBuyingBomb(false, false)
-	State.SetBuyingRadar(false, false)
-	State.SetDigReplayEnabled(false, false)
-	setPlayerTeleporting(false, false)
-	setBoulderTeleporting(false, false)
-	State.SetNoclipEnabled(false, false)
-	State.SetFloatEnabled(false, false)
-	State.SetSpeedHackEnabled(false, false)
-	State.SetInfiniteJumpEnabled(false, false)
-	setBoulderEspEnabled(false, false)
-	setBoulderPromptEnabled(false, false)
-	State.SetBoulderLevelFarmEnabled(false, false)
-	State.SetBoulderHopEnabled(false, false)
+	setFarming(false)
+	setBuyingBomb(false)
+	State.SetBuyingRadar(false)
+	State.SetDigReplayEnabled(false)
+	setPlayerTeleporting(false)
+	setBoulderTeleporting(false)
+	State.SetNoclipEnabled(false)
+	State.SetFloatEnabled(false)
+	State.SetSpeedHackEnabled(false)
+	State.SetInfiniteJumpEnabled(false)
+	setBoulderEspEnabled(false)
+	setBoulderPromptEnabled(false)
+	State.SetBoulderLevelFarmEnabled(false)
+	State.SetBoulderHopEnabled(false)
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
 	PlayerDropdownList.Visible = false
@@ -7638,21 +7555,21 @@ connect(UserInputService.InputEnded, function(input)
 	end
 end)
 
-function State.Stop(persist)
-	setFarming(false, persist)
-	setBuyingBomb(false, persist)
-	State.SetBuyingRadar(false, persist)
-	State.SetDigReplayEnabled(false, persist)
-	setPlayerTeleporting(false, persist)
-	setBoulderTeleporting(false, persist)
-	State.SetNoclipEnabled(false, persist)
-	State.SetFloatEnabled(false, persist)
-	State.SetSpeedHackEnabled(false, persist)
-	State.SetInfiniteJumpEnabled(false, persist)
-	setBoulderEspEnabled(false, persist)
-	setBoulderPromptEnabled(false, persist)
-	State.SetBoulderLevelFarmEnabled(false, persist)
-	State.SetBoulderHopEnabled(false, persist)
+function State.Stop()
+	setFarming(false)
+	setBuyingBomb(false)
+	State.SetBuyingRadar(false)
+	State.SetDigReplayEnabled(false)
+	setPlayerTeleporting(false)
+	setBoulderTeleporting(false)
+	State.SetNoclipEnabled(false)
+	State.SetFloatEnabled(false)
+	State.SetSpeedHackEnabled(false)
+	State.SetInfiniteJumpEnabled(false)
+	setBoulderEspEnabled(false)
+	setBoulderPromptEnabled(false)
+	State.SetBoulderLevelFarmEnabled(false)
+	State.SetBoulderHopEnabled(false)
 end
 
 function State.StartFarm(mode, threshold)
