@@ -3109,8 +3109,6 @@ function State.GetDigTool()
 				end
 			end
 		end
-
-		return nil
 	end
 
 	if character then
@@ -3152,7 +3150,11 @@ function State.EnsureDigToolEquipped()
 		return false
 	end
 
-	if not character or tool.Parent == character then
+	if not character then
+		return false
+	end
+
+	if tool.Parent == character then
 		return true
 	end
 
@@ -3161,10 +3163,25 @@ function State.EnsureDigToolEquipped()
 		return false
 	end
 
+	if State.BoulderLevelFarmEnabled then
+		pcall(function()
+			humanoid:UnequipTools()
+		end)
+		task.wait(0.05)
+	end
+
 	pcall(function()
 		humanoid:EquipTool(tool)
 	end)
-	return true
+	if State.BoulderLevelFarmEnabled then
+		task.wait(0.05)
+		if tool.Parent ~= character then
+			pcall(function()
+				tool.Parent = character
+			end)
+		end
+	end
+	return tool.Parent == character
 end
 
 function State.GetDigBoulderDisplayName(target)
@@ -3266,11 +3283,9 @@ function State.IsDigTool(tool, allowBracket)
 	end
 
 	local name = tostring(tool.Name or "")
-	local lowerName = name:lower()
 	return (allowBracket == true or not name:find("[", 1, true))
-		and not lowerName:find("rune", 1, true)
-		and not lowerName:find("bomb", 1, true)
-		and not lowerName:find("radar", 1, true)
+		and not name:find("Rune", 1, true)
+		and not name:find("Bomb", 1, true)
 		and name ~= "Push"
 end
 
@@ -3279,8 +3294,8 @@ function State.IsPickaxeShopTool(tool, nameSet)
 		return false
 	end
 
-	if nameSet then
-		return nameSet[State.CanonicalShopToolName(tool.Name)] == true
+	if nameSet and nameSet[State.CanonicalShopToolName(tool.Name)] then
+		return true
 	end
 
 	for _, attributeName in ipairs({ "Power", "MineSize", "Mine Size", "Pickaxe", "PickaxeId", "Rarity" }) do
@@ -4030,9 +4045,15 @@ function State.RunBoulderLevelFarmLoop()
 				if target then
 					State.BoulderLevelFarmTarget = target
 					State.SetDigBoulderTarget(target, false)
+					if State.EnsureDigToolEquipped then
+						State.EnsureDigToolEquipped()
+					end
 					setStatus("Tween to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
 					State.TweenBoulderLevelFarmToTarget(target)
 					while State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() == target and target.Parent and State.IsBoulderLevelFarmMatch(target) do
+						if State.EnsureDigToolEquipped then
+							State.EnsureDigToolEquipped()
+						end
 						local _, root = getCharacterParts(LocalPlayer)
 						local position = State.GetBoulderLevelFarmPosition(target)
 						if not position then
