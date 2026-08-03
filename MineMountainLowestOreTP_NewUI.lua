@@ -287,6 +287,34 @@ local Config = {
 	InfiniteJumpStart = false,
 	RuneItemNames = {},
 	RuneDropAmount = 1,
+	AutoPlaceRuneStart = false,
+	RunePlaceOptions = {
+		{ GuiName = "Rune_ColossusRune", ToolName = "Colossus Rune" },
+		{ GuiName = "Rune_DetonationRune", ToolName = "Detonation Rune" },
+		{ GuiName = "Rune_ExcavatorRune", ToolName = "Excavator Rune" },
+		{ GuiName = "Rune_FortuneRune", ToolName = "Fortune Rune" },
+		{ GuiName = "Rune_HasteRune", ToolName = "Haste Rune" },
+		{ GuiName = "Rune_LuckRune", ToolName = "Luck Rune" },
+		{ GuiName = "Rune_PreservationRune", ToolName = "Preservation Rune" },
+		{ GuiName = "Rune_StormRune", ToolName = "Storm Rune" },
+		{ GuiName = "Rune_WarmthRune", ToolName = "Warmth Rune" },
+		{ GuiName = "Rune_WeightRune", ToolName = "Weight Rune" }
+	},
+	RunePlaceOptionByName = {},
+	RunePlaceItemNames = {
+		"Colossus Rune",
+		"Detonation Rune",
+		"Excavator Rune",
+		"Fortune Rune",
+		"Haste Rune",
+		"Luck Rune",
+		"Preservation Rune",
+		"Storm Rune",
+		"Warmth Rune",
+		"Weight Rune"
+	},
+	RunePlaceInterval = 0.25,
+	RunePlaceRetryInterval = 1,
 	MoneyDropThresholdText = "",
 	SelectedTeleportPlayerUserId = 0,
 	SelectedTeleportPlayerName = "",
@@ -300,6 +328,10 @@ local Config = {
 	RadarShopAutoBuyEnabled = false,
 	RadarShopStartBuy = false
 }
+
+for _, option in ipairs(Config.RunePlaceOptions) do
+	Config.RunePlaceOptionByName[option.ToolName] = option
+end
 
 Config.GearShopConfigFile = ("CrystalTools_GearShop_%s.json"):format(tostring(LocalPlayer and LocalPlayer.UserId or "local"))
 Config.ConfigFile = Config.GearShopConfigFile
@@ -354,6 +386,9 @@ do
 
 		if type(savedConfig.RuneItemNames) == "table" or type(savedConfig.SelectedRuneItems) == "table" then
 			Config.RuneItemNames = copyStringArray(savedConfig.RuneItemNames or savedConfig.SelectedRuneItems)
+		end
+		if type(savedConfig.RunePlaceItemNames) == "table" or type(savedConfig.SelectedRunePlaceItems) == "table" then
+			Config.RunePlaceItemNames = copyStringArray(savedConfig.RunePlaceItemNames or savedConfig.SelectedRunePlaceItems)
 		end
 
 		if tonumber(savedConfig.FarmDistance) and tonumber(savedConfig.FarmDistance) > 0 then
@@ -432,6 +467,8 @@ do
 			Config.BoulderRejoinStart = false
 		end
 		Config.DigReplayStart = savedConfig.DigReplayStart == true or savedConfig.DigReplayEnabled == true
+		Config.AutoPlaceRuneStart = savedConfig.AutoPlaceRuneStart == true
+			or savedConfig.AutoPlaceRunes == true
 		Config.NoclipStart = savedConfig.NoclipStart == true or savedConfig.NoclipEnabled == true
 		Config.FloatStart = savedConfig.FloatStart == true or savedConfig.Floating == true
 		Config.SpeedHackStart = savedConfig.SpeedHackStart == true or savedConfig.SpeedHackEnabled == true
@@ -532,7 +569,11 @@ local State = {
 	SelectedBombItems = {},
 	SelectedRadarItems = {},
 	SelectedRuneItems = {},
+	SelectedRunePlaceItems = {},
 	RuneDropAmount = tonumber(Config.RuneDropAmount) or 1,
+	AutoPlaceRunes = false,
+	RunePlacePending = {},
+	LastRunePlaceTick = 0,
 	MoneyDropThresholdText = tostring(Config.MoneyDropThresholdText or ""),
 	DigReplayEnabled = false,
 	DigReplayThreadRunning = false,
@@ -580,6 +621,12 @@ for _, runeName in ipairs(Config.RuneItemNames or {}) do
 	end
 end
 
+for _, runeName in ipairs(Config.RunePlaceItemNames or {}) do
+	if runeName and Config.RunePlaceOptionByName[tostring(runeName)] then
+		State.SelectedRunePlaceItems[tostring(runeName)] = true
+	end
+end
+
 for _, levelName in ipairs(Config.BoulderLevelFarmLevels or { Config.BoulderLevelFarmLevel or "All" }) do
 	if levelName and tostring(levelName) ~= "" then
 		State.SelectedBoulderLevels[tostring(levelName)] = true
@@ -618,6 +665,14 @@ function State.SaveConfig()
 	end
 	table.sort(selectedRuneNames)
 
+	local selectedRunePlaceNames = {}
+	for itemName, selected in pairs(State.SelectedRunePlaceItems or {}) do
+		if selected and Config.RunePlaceOptionByName[tostring(itemName)] then
+			table.insert(selectedRunePlaceNames, tostring(itemName))
+		end
+	end
+	table.sort(selectedRunePlaceNames)
+
 	local selectedBoulderLevels = {}
 	for levelName, selected in pairs(State.SelectedBoulderLevels or {}) do
 		if selected then
@@ -648,6 +703,8 @@ function State.SaveConfig()
 	Config.RadarItemName = selectedRadarNames[1]
 	Config.RuneItemNames = selectedRuneNames
 	Config.RuneDropAmount = State.RuneDropAmount or 1
+	Config.AutoPlaceRuneStart = State.AutoPlaceRunes == true
+	Config.RunePlaceItemNames = selectedRunePlaceNames
 	Config.MoneyDropThresholdText = State.MoneyDropThresholdText or ""
 	Config.GearShopBuyAll = State.GearShopBuyAll == true
 	Config.GearShopAutoBuyEnabled = State.BuyingBomb == true
@@ -690,6 +747,10 @@ function State.SaveConfig()
 		RuneDropAmount = Config.RuneDropAmount,
 		RuneItemNames = selectedRuneNames,
 		SelectedRuneItems = selectedRuneNames,
+		AutoPlaceRuneStart = State.AutoPlaceRunes == true,
+		AutoPlaceRunes = State.AutoPlaceRunes == true,
+		RunePlaceItemNames = selectedRunePlaceNames,
+		SelectedRunePlaceItems = selectedRunePlaceNames,
 		PlayerTeleportStart = Config.PlayerTeleportStart,
 		PlayerTeleporting = Config.PlayerTeleportStart,
 		SelectedTeleportPlayerUserId = State.SelectedTeleportPlayerUserId,
@@ -750,6 +811,7 @@ end
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
 local CrystalDropRequest = Remotes and Remotes:FindFirstChild("CrystalDropRequest")
+State.PlotPlaceRequest = Remotes and Remotes:FindFirstChild("PlotPlaceRequest")
 State.DigRequestRemote = Remotes and Remotes:FindFirstChild("DigRequest")
 State.GoHomeRemote = Remotes and Remotes:FindFirstChild("GoHome")
 local Networking
@@ -1410,8 +1472,74 @@ UI.DropRuneButton = create("TextButton", {
 }, Content)
 styleSurface(UI.DropRuneButton, 6, Theme.Accent)
 
-UI.DigReplayButton = create("TextButton", {
+UI.RunePlaceLabel = create("TextLabel", {
 	Position = UDim2.new(0, 14, 0, 794),
+	Size = UDim2.new(1, -28, 0, 18),
+	BackgroundTransparency = 1,
+	Text = "Rune plot",
+	TextColor3 = Theme.Muted,
+	TextSize = 12,
+	Font = Enum.Font.GothamMedium,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Content)
+
+UI.AutoPlaceRuneButton = create("TextButton", {
+	Position = UDim2.new(0, 14, 0, 818),
+	Size = UDim2.new(1 / 2, -19, 0, 34),
+	BackgroundColor3 = Theme.Button,
+	BorderSizePixel = 0,
+	Text = "AUTO PLACE OFF",
+	TextColor3 = Theme.Text,
+	TextSize = 12,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.AutoPlaceRuneButton, 6, Theme.Accent)
+
+UI.RunePlaceDropdownButton = create("TextButton", {
+	Position = UDim2.new(1 / 2, 5, 0, 818),
+	Size = UDim2.new(1 / 2, -19, 0, 34),
+	BackgroundColor3 = Theme.Panel,
+	BorderSizePixel = 0,
+	Text = "Place Runes: 10 selected",
+	TextColor3 = Theme.Text,
+	TextSize = 12,
+	Font = Enum.Font.Gotham,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd
+}, Content)
+styleSurface(UI.RunePlaceDropdownButton, 6, Theme.Accent)
+create("UIPadding", {
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8)
+}, UI.RunePlaceDropdownButton)
+
+UI.RunePlaceDropdownList = create("ScrollingFrame", {
+	Position = UDim2.new(0, 14, 0, 858),
+	Size = UDim2.new(1, -28, 0, 102),
+	BackgroundColor3 = Theme.Panel,
+	BorderSizePixel = 0,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	ScrollBarThickness = 4,
+	ScrollBarImageColor3 = Theme.Accent,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+	ElasticBehavior = Enum.ElasticBehavior.Never,
+	Visible = false,
+	ZIndex = 7
+}, Content)
+styleSurface(UI.RunePlaceDropdownList, 6, Theme.Accent)
+create("UIPadding", {
+	PaddingTop = UDim.new(0, 6),
+	PaddingLeft = UDim.new(0, 6),
+	PaddingRight = UDim.new(0, 6),
+	PaddingBottom = UDim.new(0, 6)
+}, UI.RunePlaceDropdownList)
+UI.RunePlaceDropdownLayout = create("UIListLayout", {
+	Padding = UDim.new(0, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder
+}, UI.RunePlaceDropdownList)
+
+UI.DigReplayButton = create("TextButton", {
+	Position = UDim2.new(0, 14, 0, 868),
 	Size = UDim2.new(1 / 2, -19, 0, 34),
 	BackgroundColor3 = Theme.Button,
 	BorderSizePixel = 0,
@@ -1423,7 +1551,7 @@ UI.DigReplayButton = create("TextButton", {
 styleSurface(UI.DigReplayButton, 6, Theme.Accent)
 
 UI.DigBoulderDropdownButton = create("TextButton", {
-	Position = UDim2.new(1 / 2, 5, 0, 794),
+	Position = UDim2.new(1 / 2, 5, 0, 868),
 	Size = UDim2.new(1 / 2, -19, 0, 34),
 	BackgroundColor3 = Theme.Panel,
 	BorderSizePixel = 0,
@@ -1441,7 +1569,7 @@ create("UIPadding", {
 }, UI.DigBoulderDropdownButton)
 
 UI.DigBoulderDropdownList = create("ScrollingFrame", {
-	Position = UDim2.new(0, 14, 0, 836),
+	Position = UDim2.new(0, 14, 0, 910),
 	Size = UDim2.new(1, -28, 0, 102),
 	BackgroundColor3 = Theme.Panel,
 	BorderSizePixel = 0,
@@ -1977,6 +2105,7 @@ do
 		CrystalActionsLabel,
 		UI.MoneyDropLabel,
 		UI.RuneDropLabel,
+		UI.RunePlaceLabel,
 		UI.BoulderLevelFarmLabel,
 		PlayerTPLabel,
 		BoulderTPLabel,
@@ -1996,6 +2125,7 @@ do
 		PlayerDropdownButton,
 		BoulderDropdownButton,
 		UI.RuneDropdownButton,
+		UI.RunePlaceDropdownButton,
 		UI.DigBoulderDropdownButton,
 		UI.BoulderLevelDropdownButton,
 		BombDropdownButton,
@@ -2035,6 +2165,7 @@ do
 		UI.SpeedButton,
 		UI.InfiniteJumpButton,
 		UI.DropRuneButton,
+		UI.AutoPlaceRuneButton,
 		UI.BuyAllBombButton,
 		BuyBombButton,
 		UI.BuyAllRadarButton,
@@ -2056,6 +2187,7 @@ do
 		PlayerDropdownList,
 		BoulderDropdownList,
 		UI.RuneDropdownList,
+		UI.RunePlaceDropdownList,
 		UI.DigBoulderDropdownList,
 		UI.BoulderLevelDropdownList,
 		BombDropdownList,
@@ -2267,11 +2399,20 @@ local function applyVerticalControlsLayout()
 	UI.DropRuneButton.Position = UDim2.new(1 / 2, 5, 0, 744)
 	UI.DropRuneButton.Size = UDim2.new(1 / 2, -19, 0, 34)
 
-	UI.DigReplayButton.Position = UDim2.new(0, 14, 0, 794)
+	UI.RunePlaceLabel.Position = UDim2.new(0, 14, 0, 794)
+	UI.RunePlaceLabel.Size = UDim2.new(1, -28, 0, 18)
+	UI.AutoPlaceRuneButton.Position = UDim2.new(0, 14, 0, 818)
+	UI.AutoPlaceRuneButton.Size = UDim2.new(1 / 2, -19, 0, 34)
+	UI.RunePlaceDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 818)
+	UI.RunePlaceDropdownButton.Size = UDim2.new(1 / 2, -19, 0, 34)
+	UI.RunePlaceDropdownList.Position = UDim2.new(0, 14, 0, 858)
+	UI.RunePlaceDropdownList.Size = UDim2.new(1, -28, 0, 102)
+
+	UI.DigReplayButton.Position = UDim2.new(0, 14, 0, 868)
 	UI.DigReplayButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.DigBoulderDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 794)
+	UI.DigBoulderDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 868)
 	UI.DigBoulderDropdownButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.DigBoulderDropdownList.Position = UDim2.new(0, 14, 0, 836)
+	UI.DigBoulderDropdownList.Position = UDim2.new(0, 14, 0, 910)
 	UI.DigBoulderDropdownList.Size = UDim2.new(1, -28, 0, 102)
 
 	UI.BoulderLevelFarmLabel.Position = UDim2.new(0, 14, 0, 954)
@@ -2389,6 +2530,10 @@ local function applyHorizontalControlsLayout(width)
 	setRect(UI.RuneAmountInput, leftX + runeDropdownWidth + 8, 368, runeAmountWidth, 34)
 	setRect(UI.DropRuneButton, leftX + runeDropdownWidth + runeAmountWidth + 16, 368, runeButtonWidth, 34)
 	setRect(UI.RuneDropdownList, leftX, 410, columnWidth, 76)
+	setRect(UI.RunePlaceLabel, leftX, 420, columnWidth, 16)
+	setRect(UI.AutoPlaceRuneButton, leftX, 444, halfWidth, 34)
+	setRect(UI.RunePlaceDropdownButton, leftX + halfWidth + 10, 444, halfWidth, 34)
+	setRect(UI.RunePlaceDropdownList, leftX, 486, columnWidth, 96)
 	setRect(UI.DigReplayButton, leftX, 498, halfWidth, 34)
 	setRect(UI.DigBoulderDropdownButton, leftX + halfWidth + 10, 498, halfWidth, 34)
 	setRect(UI.DigBoulderDropdownList, leftX, 540, columnWidth, 96)
@@ -2496,6 +2641,7 @@ local function applyResponsiveLayout(centerMobile)
 	BombDropdownList.ScrollBarThickness = mobile and 5 or 4
 	UI.RadarDropdownList.ScrollBarThickness = mobile and 5 or 4
 	UI.RuneDropdownList.ScrollBarThickness = mobile and 5 or 4
+	UI.RunePlaceDropdownList.ScrollBarThickness = mobile and 5 or 4
 	UI.DigBoulderDropdownList.ScrollBarThickness = mobile and 5 or 4
 	UI.BoulderLevelDropdownList.ScrollBarThickness = mobile and 5 or 4
 	PlayerDropdownList.ScrollBarThickness = mobile and 5 or 4
@@ -2961,6 +3107,7 @@ local function setCollapsed(collapsed, persist)
 		PlayerDropdownList.Visible = false
 		BoulderDropdownList.Visible = false
 		UI.RuneDropdownList.Visible = false
+		UI.RunePlaceDropdownList.Visible = false
 		UI.DigBoulderDropdownList.Visible = false
 		UI.BoulderLevelDropdownList.Visible = false
 		BombDropdownList.Visible = false
@@ -3009,6 +3156,7 @@ local updateBoulderPromptButton
 local updateBombDropdownText
 local refreshBombDropdownOptions
 local RuneDrop = {}
+State.RunePlace = {}
 local BoulderEspObjects = {}
 
 local function getPlayerDisplayName(player)
@@ -5217,6 +5365,30 @@ function RuneDrop.UpdateAmount(value)
 	return amount
 end
 
+function State.RunePlace.GetSelectedNames()
+	local names = {}
+	for _, option in ipairs(Config.RunePlaceOptions) do
+		if State.SelectedRunePlaceItems[option.ToolName] then
+			table.insert(names, option.ToolName)
+		end
+	end
+	return names
+end
+
+function State.RunePlace.SetSelected(itemName, selected)
+	itemName = tostring(itemName or "")
+	if not Config.RunePlaceOptionByName[itemName] then
+		return
+	end
+
+	State.SelectedRunePlaceItems[itemName] = selected == true or nil
+	State.RunePlacePending[itemName] = nil
+	if State.RunePlace.UpdateDropdownText then
+		State.RunePlace.UpdateDropdownText()
+	end
+	State.SaveConfig()
+end
+
 local function getBombShopConfig()
 	if BombShopConfig then
 		return BombShopConfig
@@ -6069,6 +6241,71 @@ function RuneDrop.RefreshDropdownOptions()
 
 	UI.RuneDropdownList.CanvasSize = UDim2.new(0, 0, 0, (#runeNames * optionStep) + 12)
 	RuneDrop.UpdateDropdownText()
+end
+
+function State.RunePlace.UpdateDropdownText()
+	local names = State.RunePlace.GetSelectedNames()
+	if #names == 0 then
+		UI.RunePlaceDropdownButton.Text = "Select Place Rune"
+	elseif #names == 1 then
+		UI.RunePlaceDropdownButton.Text = "Place: " .. names[1]
+	else
+		UI.RunePlaceDropdownButton.Text = ("Place Runes: %d selected"):format(#names)
+	end
+end
+
+function State.RunePlace.UpdateToggleButton()
+	if State.AutoPlaceRunes then
+		UI.AutoPlaceRuneButton.Text = "AUTO PLACE ON"
+		UI.AutoPlaceRuneButton.BackgroundColor3 = Theme.Bad
+	else
+		UI.AutoPlaceRuneButton.Text = "AUTO PLACE OFF"
+		UI.AutoPlaceRuneButton.BackgroundColor3 = Theme.Button
+	end
+end
+
+function State.RunePlace.RefreshDropdownOptions()
+	for _, child in ipairs(UI.RunePlaceDropdownList:GetChildren()) do
+		if child.Name == "RunePlaceOption" then
+			child:Destroy()
+		end
+	end
+
+	local counts = RuneDrop.GetInventoryCounts()
+	local optionHeight = UI.IsMobile and 32 or 26
+	local optionStep = optionHeight + 4
+	for index, optionData in ipairs(Config.RunePlaceOptions) do
+		local itemName = optionData.ToolName
+		local selected = State.SelectedRunePlaceItems[itemName] == true
+		local countText = " x" .. tostring(counts[itemName] or 0)
+		local option = create("TextButton", {
+			Name = "RunePlaceOption",
+			LayoutOrder = index,
+			Size = UDim2.new(1, -12, 0, optionHeight),
+			BackgroundColor3 = selected and Theme.Button or Theme.ButtonDark,
+			BorderSizePixel = 0,
+			Text = (selected and "[x] " or "[ ] ") .. itemName .. countText,
+			TextColor3 = Theme.Text,
+			TextSize = 13,
+			Font = Enum.Font.GothamBold,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			ZIndex = 8
+		}, UI.RunePlaceDropdownList)
+		styleSurface(option, 5, Theme.Accent)
+		create("UIPadding", {
+			PaddingLeft = UDim.new(0, 8),
+			PaddingRight = UDim.new(0, 8)
+		}, option)
+
+		connect(option.Activated, function()
+			State.RunePlace.SetSelected(itemName, not State.SelectedRunePlaceItems[itemName])
+			State.RunePlace.RefreshDropdownOptions()
+		end)
+	end
+
+	UI.RunePlaceDropdownList.CanvasSize = UDim2.new(0, 0, 0, (#Config.RunePlaceOptions * optionStep) + 12)
+	State.RunePlace.UpdateDropdownText()
 end
 
 local function getBombPurchaseRemote()
@@ -7768,6 +8005,110 @@ function RuneDrop.DropSelectedItems()
 	return dropped
 end
 
+function State.RunePlace.GetRemote()
+	if State.PlotPlaceRequest and State.PlotPlaceRequest.Parent then
+		return State.PlotPlaceRequest
+	end
+
+	State.PlotPlaceRequest = Remotes and Remotes:FindFirstChild("PlotPlaceRequest")
+	return State.PlotPlaceRequest
+end
+
+function State.RunePlace.GetEvents()
+	local playerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+	local explorerHud = playerGui and playerGui:FindFirstChild("ExplorerHud")
+	return explorerHud and explorerHud:FindFirstChild("Events")
+end
+
+function State.RunePlace.GetPlotPosition()
+	local things = Workspace:FindFirstChild("Things")
+	local plots = things and things:FindFirstChild("Plots")
+	local slots = plots and plots:FindFirstChild("Slots")
+	local plot = slots and LocalPlayer and slots:FindFirstChild(LocalPlayer.Name)
+	local region = plot and plot:FindFirstChild("Region")
+	if not region then
+		return nil
+	end
+
+	local ok, position = pcall(function()
+		return region.Position
+	end)
+	return ok and position or nil
+end
+
+function State.RunePlace.FindTool(itemName)
+	local character = LocalPlayer and LocalPlayer.Character
+	local backpack = LocalPlayer and LocalPlayer:FindFirstChild("Backpack")
+	local tool = character and character:FindFirstChild(itemName)
+		or backpack and backpack:FindFirstChild(itemName)
+	return tool and tool:IsA("Tool") and tool or nil
+end
+
+function State.SetAutoPlaceRuneEnabled(enabled, persist)
+	enabled = enabled == true
+	if enabled and #State.RunePlace.GetSelectedNames() == 0 then
+		State.AutoPlaceRunes = false
+		State.RunePlace.RefreshDropdownOptions()
+		UI.RunePlaceDropdownList.Visible = true
+		setStatus("Select Rune to place first", Theme.Muted)
+	else
+		State.AutoPlaceRunes = enabled
+		if enabled then
+			setStatus("Auto Place Rune ON", Theme.Good)
+		else
+			table.clear(State.RunePlacePending)
+			setStatus("Auto Place Rune OFF", Theme.Muted)
+		end
+	end
+
+	State.RunePlace.UpdateToggleButton()
+	if persist ~= false then
+		State.SaveConfig()
+	end
+	return State.AutoPlaceRunes
+end
+
+function State.RunePlace.Heartbeat()
+	if not State.AutoPlaceRunes then
+		return
+	end
+
+	local now = os.clock()
+	if now - (State.LastRunePlaceTick or 0) < (Config.RunePlaceInterval or 0.25) then
+		return
+	end
+	State.LastRunePlaceTick = now
+
+	local events = State.RunePlace.GetEvents()
+	local remote = State.RunePlace.GetRemote()
+	local position = State.RunePlace.GetPlotPosition()
+	if not (events and remote and position) then
+		return
+	end
+
+	for _, option in ipairs(Config.RunePlaceOptions) do
+		local itemName = option.ToolName
+		if State.SelectedRunePlaceItems[itemName] then
+			if events:FindFirstChild(option.GuiName) then
+				State.RunePlacePending[itemName] = nil
+			else
+				local lastAttempt = State.RunePlacePending[itemName]
+				if not lastAttempt or now - lastAttempt >= (Config.RunePlaceRetryInterval or 1) then
+					local tool = State.RunePlace.FindTool(itemName)
+					if tool then
+						local ok = pcall(function()
+							remote:FireServer(itemName, position, 0, tool)
+						end)
+						if ok then
+							State.RunePlacePending[itemName] = now
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
 function State.BindCameraViewport()
 	if State.CameraViewportConnection then
 		pcall(function()
@@ -7805,6 +8146,7 @@ connect(RunService.Heartbeat, boulderPromptHeartbeat)
 connect(RunService.Heartbeat, State.BoulderHopHeartbeat)
 connect(RunService.Heartbeat, State.BoulderRejoinHeartbeat)
 connect(RunService.Heartbeat, State.BuyRadarHeartbeat)
+connect(RunService.Heartbeat, State.RunePlace.Heartbeat)
 
 connect(Workspace.DescendantAdded, function(object)
 	if isBoulderPathObject(object) then
@@ -7933,6 +8275,7 @@ connect(UI.RuneDropdownButton.Activated, function()
 	WeightModeList.Visible = false
 	PlayerDropdownList.Visible = false
 	BoulderDropdownList.Visible = false
+	UI.RunePlaceDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
 	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
@@ -7947,11 +8290,71 @@ connect(UI.DropRuneButton.Activated, function()
 	WeightModeList.Visible = false
 	PlayerDropdownList.Visible = false
 	BoulderDropdownList.Visible = false
+	UI.RunePlaceDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
 	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	task.spawn(RuneDrop.DropSelectedItems)
 end)
+
+connect(UI.AutoPlaceRuneButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	UI.RunePlaceDropdownList.Visible = false
+	State.SetAutoPlaceRuneEnabled(not State.AutoPlaceRunes)
+end)
+
+connect(UI.RunePlaceDropdownButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	UI.RunePlaceDropdownList.Visible = not UI.RunePlaceDropdownList.Visible
+	if UI.RunePlaceDropdownList.Visible then
+		State.RunePlace.RefreshDropdownOptions()
+	end
+end)
+
+for _, otherList in ipairs({
+	FilterTypeList,
+	WeightModeList,
+	PlayerDropdownList,
+	BoulderDropdownList,
+	UI.RuneDropdownList,
+	UI.DigBoulderDropdownList,
+	UI.BoulderLevelDropdownList,
+	BombDropdownList,
+	UI.RadarDropdownList
+}) do
+	connect(otherList:GetPropertyChangedSignal("Visible"), function()
+		if otherList.Visible then
+			UI.RunePlaceDropdownList.Visible = false
+		end
+	end)
+end
+
+for _, control in ipairs(Content:GetDescendants()) do
+	if control:IsA("TextButton")
+		and control ~= UI.RunePlaceDropdownButton
+		and control ~= UI.AutoPlaceRuneButton
+		and not control:IsDescendantOf(UI.RunePlaceDropdownList) then
+		connect(control.Activated, function()
+			UI.RunePlaceDropdownList.Visible = false
+		end)
+	end
+end
 
 connect(UI.DigReplayButton.Activated, function()
 	FilterTypeList.Visible = false
@@ -8258,6 +8661,7 @@ connect(CloseButton.Activated, function()
 	setBuyingBomb(false)
 	State.SetBuyingRadar(false)
 	State.SetDigReplayEnabled(false)
+	State.SetAutoPlaceRuneEnabled(false)
 	setPlayerTeleporting(false)
 	setBoulderTeleporting(false)
 	State.SetNoclipEnabled(false)
@@ -8274,6 +8678,7 @@ connect(CloseButton.Activated, function()
 	PlayerDropdownList.Visible = false
 	BoulderDropdownList.Visible = false
 	UI.RuneDropdownList.Visible = false
+	UI.RunePlaceDropdownList.Visible = false
 	UI.DigBoulderDropdownList.Visible = false
 	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
@@ -8331,6 +8736,7 @@ function State.Stop()
 	setBuyingBomb(false)
 	State.SetBuyingRadar(false)
 	State.SetDigReplayEnabled(false)
+	State.SetAutoPlaceRuneEnabled(false)
 	setPlayerTeleporting(false)
 	setBoulderTeleporting(false)
 	State.SetNoclipEnabled(false)
@@ -8484,6 +8890,36 @@ function State.SetRuneSelection(itemNames)
 	end
 	State.SaveConfig()
 	return RuneDrop.GetSelectedNames()
+end
+
+function State.SetRunePlaceSelection(itemNames)
+	State.SelectedRunePlaceItems = {}
+
+	if type(itemNames) == "table" then
+		for _, itemName in ipairs(itemNames) do
+			itemName = tostring(itemName or "")
+			if Config.RunePlaceOptionByName[itemName] then
+				State.SelectedRunePlaceItems[itemName] = true
+			end
+		end
+	else
+		itemNames = tostring(itemNames or "")
+		if Config.RunePlaceOptionByName[itemNames] then
+			State.SelectedRunePlaceItems[itemNames] = true
+		end
+	end
+
+	table.clear(State.RunePlacePending)
+	State.RunePlace.UpdateDropdownText()
+	if UI.RunePlaceDropdownList.Visible then
+		State.RunePlace.RefreshDropdownOptions()
+	end
+	State.SaveConfig()
+	return State.RunePlace.GetSelectedNames()
+end
+
+function State.SetAutoPlaceRunes(enabled)
+	return State.SetAutoPlaceRuneEnabled(enabled)
 end
 
 function State.DropRunes(itemNames, amount)
@@ -8894,6 +9330,9 @@ function State.ApplySavedConfigStarts()
 	if Config.DigReplayStart then
 		State.SetDigReplayEnabled(true, false)
 	end
+	if Config.AutoPlaceRuneStart then
+		State.SetAutoPlaceRuneEnabled(true, false)
+	end
 	if Config.GearShopStartBuy or Config.GearShopAutoBuyEnabled then
 		setBuyingBomb(true, false)
 	end
@@ -8907,6 +9346,7 @@ function State.Destroy()
 	setBuyingBomb(false, false)
 	State.SetBuyingRadar(false, false)
 	State.SetDigReplayEnabled(false, false)
+	State.SetAutoPlaceRuneEnabled(false, false)
 	setPlayerTeleporting(false, false)
 	setBoulderTeleporting(false, false)
 	State.SetNoclipEnabled(false, false)
@@ -8955,6 +9395,8 @@ State.UpdateBoulderLevelFarmButton()
 State.UpdateBoulderHopButton()
 State.UpdateBoulderRejoinButton()
 RuneDrop.UpdateDropdownText()
+State.RunePlace.UpdateDropdownText()
+State.RunePlace.UpdateToggleButton()
 State.UpdateGearShopBuyAllButton()
 State.UpdateBuyBombButtonText()
 updateBombDropdownText()
@@ -8972,6 +9414,7 @@ if Config.FarmStart
 	or Config.BoulderHopStart
 	or Config.BoulderRejoinStart
 	or Config.DigReplayStart
+	or Config.AutoPlaceRuneStart
 	or Config.NoclipStart
 	or Config.FloatStart
 	or Config.SpeedHackStart
