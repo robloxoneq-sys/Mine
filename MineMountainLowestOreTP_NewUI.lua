@@ -187,7 +187,10 @@ local AllowedUsers = {
 	LockedScriptUsers = {
 		mxnkyhpc5015 = true,
 		m4rymeqw = true, --มิวสิค
+		FERN_18157 = true, --ลูกค้า
+		Tans24fe = true, --ลูกค้า
 	},
+	quut16pkbn34 = true,
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
 	zonebuxx29 = true, --ลูกค้า
@@ -198,6 +201,7 @@ local AllowedUsers = {
 	OoShinobiPKoO = true, --ลูกค้า
 	nigon001 = true, --ลูกค้า
 	ufmn88zmuh19 = true, --ให้เทส
+	F_fort240 = true, --จ้างฟาม
 	Tans24fe = true --ลูกค้า
 }
 
