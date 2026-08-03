@@ -320,6 +320,7 @@ local Config = {
 	SelectedTeleportPlayerName = "",
 	SelectedBoulderName = "",
 	SelectedDigBoulderName = "",
+	Language = "EN",
 	Collapsed = false,
 	GearShopBuyAll = false,
 	GearShopAutoBuyEnabled = false,
@@ -438,6 +439,9 @@ do
 		end
 		if savedConfig.SelectedDigBoulderName ~= nil then
 			Config.SelectedDigBoulderName = tostring(savedConfig.SelectedDigBoulderName)
+		end
+		if savedConfig.Language ~= nil then
+			Config.Language = tostring(savedConfig.Language):upper() == "TH" and "TH" or "EN"
 		end
 		if type(savedConfig.BoulderLevelFarmLevels) == "table" or type(savedConfig.SelectedBoulderLevels) == "table" then
 			Config.BoulderLevelFarmLevels = copyStringArray(savedConfig.BoulderLevelFarmLevels or savedConfig.SelectedBoulderLevels)
@@ -565,6 +569,7 @@ local State = {
 	SpeedHackHumanoid = nil,
 	SpeedHackOriginalWalkSpeed = nil,
 	InfiniteJumpEnabled = false,
+	Language = tostring(Config.Language or "EN"):upper() == "TH" and "TH" or "EN",
 	Collapsed = Config.Collapsed == true,
 	SelectedBombItems = {},
 	SelectedRadarItems = {},
@@ -727,6 +732,7 @@ function State.SaveConfig()
 	Config.FloatStart = State.Floating == true
 	Config.SpeedHackStart = State.SpeedHackEnabled == true
 	Config.InfiniteJumpStart = State.InfiniteJumpEnabled == true
+	Config.Language = State.Language == "TH" and "TH" or "EN"
 	Config.Collapsed = State.Collapsed == true
 
 	local data = {
@@ -783,6 +789,7 @@ function State.SaveConfig()
 		SpeedHackEnabled = Config.SpeedHackStart,
 		InfiniteJumpStart = Config.InfiniteJumpStart,
 		InfiniteJumpEnabled = Config.InfiniteJumpStart,
+		Language = Config.Language,
 		Collapsed = Config.Collapsed,
 		GearShopBuyAll = State.GearShopBuyAll == true,
 		GearShopAutoBuyEnabled = State.BuyingBomb == true,
@@ -807,6 +814,313 @@ end
 
 function State.SaveGearShopConfig()
 	return State.SaveConfig()
+end
+
+State.Translations = {
+	["CRYSTAL FILTERS"] = "ตัวกรองคริสตัล",
+	["CRYSTAL ACTIONS"] = "จัดการคริสตัล",
+	["MONEY DROP"] = "ดรอปตามมูลค่า",
+	["RUNE DROP"] = "ดรอปรูน",
+	["RUNE PLOT"] = "วางรูนที่พล็อต",
+	["AUTO FARM RUNE"] = "ฟาร์มรูนอัตโนมัติ",
+	["PLAYER TP"] = "วาร์ปผู้เล่น",
+	["RUNE TP"] = "วาร์ปรูน",
+	["GEAR SHOP"] = "ร้านอุปกรณ์",
+	["RADAR SHOP"] = "ร้านเรดาร์",
+	["Weight"] = "น้ำหนัก",
+	["Money"] = "เงิน",
+	["Luck"] = "โชค",
+	["Amount"] = "จำนวน",
+	["stud"] = "ระยะ",
+	["Weight ON"] = "น้ำหนัก เปิด",
+	["Weight OFF"] = "น้ำหนัก ปิด",
+	["Money ON"] = "เงิน เปิด",
+	["Money OFF"] = "เงิน ปิด",
+	["Luck ON"] = "โชค เปิด",
+	["Luck OFF"] = "โชค ปิด",
+	["Above"] = "มากกว่า",
+	["Below"] = "น้อยกว่า",
+	["Start Farm"] = "เริ่มฟาร์ม",
+	["Stop Farm"] = "หยุดฟาร์ม",
+	["Drop All Backpack"] = "ดรอปของทั้งกระเป๋า",
+	["Drop Crystal"] = "ดรอปคริสตัล",
+	["Drop Rune"] = "ดรอปรูน",
+	["Dropping..."] = "กำลังดรอป...",
+	["Select Rune"] = "เลือกรูน",
+	["Select Place Rune"] = "เลือกรูนที่จะวาง",
+	["Select Dig Rune"] = "เลือกรูนที่จะขุด",
+	["Select Dig Rune first"] = "เลือกรูนที่จะขุดก่อน",
+	["Select player"] = "เลือกผู้เล่น",
+	["Select rune"] = "เลือกรูน",
+	["Select gear"] = "เลือกอุปกรณ์",
+	["Select Radar"] = "เลือกเรดาร์",
+	["Rune Level: All"] = "ระดับรูน: ทั้งหมด",
+	["Rune Level: LOCKED"] = "ระดับรูน: ล็อก",
+	["AUTO PLACE ON"] = "วางอัตโนมัติ เปิด",
+	["AUTO PLACE OFF"] = "วางอัตโนมัติ ปิด",
+	["DIG LOOP ON"] = "ขุดซ้ำ เปิด",
+	["DIG LOOP OFF"] = "ขุดซ้ำ ปิด",
+	["RUNE FARM ON"] = "ฟาร์มรูน เปิด",
+	["RUNE FARM OFF"] = "ฟาร์มรูน ปิด",
+	["RUNE FARM LOCKED"] = "ฟาร์มรูน ล็อก",
+	["HOP LOCK"] = "ย้ายเซิร์ฟ ล็อก",
+	["RJ LOCK"] = "เข้าใหม่ ล็อก",
+	["Start TP"] = "เริ่มวาร์ป",
+	["Stop TP"] = "หยุดวาร์ป",
+	["Start Rune TP"] = "เริ่มวาร์ปรูน",
+	["TP ON"] = "วาร์ป เปิด",
+	["TP OFF"] = "วาร์ป ปิด",
+	["NC ON"] = "NC เปิด",
+	["NC OFF"] = "NC ปิด",
+	["ESP ON"] = "ESP เปิด",
+	["ESP OFF"] = "ESP ปิด",
+	["RUNE ON"] = "รูน เปิด",
+	["RUNE OFF"] = "รูน ปิด",
+	["HOP ON"] = "ย้ายเซิร์ฟ เปิด",
+	["HOP OFF"] = "ย้ายเซิร์ฟ ปิด",
+	["RJ ON"] = "เข้าใหม่ เปิด",
+	["RJ OFF"] = "เข้าใหม่ ปิด",
+	["FLOAT ON"] = "ลอย เปิด",
+	["FLOAT OFF"] = "ลอย ปิด",
+	["SPEED ON"] = "ความเร็ว เปิด",
+	["SPEED OFF"] = "ความเร็ว ปิด",
+	["JUMP ON"] = "กระโดด เปิด",
+	["JUMP OFF"] = "กระโดด ปิด",
+	["ALL ON"] = "ทั้งหมด เปิด",
+	["ALL OFF"] = "ทั้งหมด ปิด",
+	["START BUY"] = "เริ่มซื้อ",
+	["STOP BUY"] = "หยุดซื้อ",
+	["Idle"] = "ว่าง",
+	["Ready"] = "พร้อม",
+	["Locked"] = "ล็อก",
+	["Unknown"] = "ไม่ทราบ",
+	["No other players"] = "ไม่พบผู้เล่นอื่น",
+	["No runes found"] = "ไม่พบรูน",
+	["No rune levels found"] = "ไม่พบระดับรูน",
+	["No bomb stock found"] = "ไม่พบอุปกรณ์ในสต็อก",
+	["No radar stock found"] = "ไม่พบเรดาร์ในสต็อก",
+	["No Rune in backpack"] = "ไม่พบรูนในกระเป๋า",
+	["Farm stopped"] = "หยุดฟาร์มแล้ว",
+	["Dig loop stopped"] = "หยุดขุดซ้ำแล้ว",
+	["Rune ESP stopped"] = "หยุด ESP รูนแล้ว",
+	["Rune FirePrompt ON"] = "กดรูนอัตโนมัติ เปิด",
+	["Rune FirePrompt stopped"] = "หยุดกดรูนอัตโนมัติแล้ว",
+	["TP stopped"] = "หยุดวาร์ปแล้ว",
+	["Rune TP stopped"] = "หยุดวาร์ปรูนแล้ว",
+	["Rune farm OFF"] = "ฟาร์มรูน ปิด",
+	["Rune gone, waiting before next"] = "รูนหาย กำลังรอตัวถัดไป",
+	["Rune empty hop ON"] = "ย้ายเซิร์ฟเมื่อรูนหมด เปิด",
+	["Rune empty hop OFF"] = "ย้ายเซิร์ฟเมื่อรูนหมด ปิด",
+	["Rune empty rejoin ON"] = "เข้าใหม่เมื่อรูนหมด เปิด",
+	["Rune empty rejoin OFF"] = "เข้าใหม่เมื่อรูนหมด ปิด",
+	["Noclip ON"] = "ทะลุสิ่งกีดขวาง เปิด",
+	["Noclip OFF"] = "ทะลุสิ่งกีดขวาง ปิด",
+	["Float ON"] = "ลอย เปิด",
+	["Float OFF"] = "ลอย ปิด",
+	["Speed OFF"] = "ความเร็ว ปิด",
+	["Infinite Jump ON"] = "กระโดดไม่จำกัด เปิด",
+	["Infinite Jump OFF"] = "กระโดดไม่จำกัด ปิด",
+	["Auto Place Rune ON"] = "วางรูนอัตโนมัติ เปิด",
+	["Auto Place Rune OFF"] = "วางรูนอัตโนมัติ ปิด",
+	["Select Rune to place first"] = "เลือกรูนที่จะวางก่อน",
+	["Select Rune first"] = "เลือกรูนก่อน",
+	["Select a player before starting TP"] = "เลือกผู้เล่นก่อนเริ่มวาร์ป",
+	["Select a rune before starting TP"] = "เลือกรูนก่อนเริ่มวาร์ป",
+	["Enter money amount first"] = "กรอกจำนวนเงินก่อน",
+	["Money drop input invalid"] = "จำนวนเงินไม่ถูกต้อง",
+	["Already dropping money crystals"] = "กำลังดรอปคริสตัลเงินอยู่",
+	["Already dropping backpack items"] = "กำลังดรอปของในกระเป๋าอยู่",
+	["Already dropping Rune items"] = "กำลังดรอปรูนอยู่",
+	["No backpack items to drop"] = "ไม่มีของในกระเป๋าให้ดรอป",
+	["Selected Rune not found in backpack"] = "ไม่พบรูนที่เลือกในกระเป๋า",
+	["Character not found for player TP"] = "ไม่พบตัวละครสำหรับวาร์ปผู้เล่น",
+	["Character not found for Rune TP"] = "ไม่พบตัวละครสำหรับวาร์ปรูน",
+	["TP target not found"] = "ไม่พบเป้าหมายวาร์ป",
+	["No Rune ProximityPrompt found"] = "ไม่พบ ProximityPrompt ของรูน",
+	["DigRequest remote not found"] = "ไม่พบ DigRequest remote",
+	["CrystalDropRequest remote not found"] = "ไม่พบ CrystalDropRequest remote",
+	["GoHome remote not found"] = "ไม่พบ GoHome remote",
+	["http_request not found"] = "ไม่พบ http_request",
+	["Server hop request failed"] = "ขอย้ายเซิร์ฟไม่สำเร็จ",
+	["Server hop decode failed"] = "อ่านข้อมูลเซิร์ฟไม่สำเร็จ",
+	["No hop server found"] = "ไม่พบเซิร์ฟสำหรับย้าย",
+	["Rejoining in 2s..."] = "กำลังเข้าเซิร์ฟใหม่ใน 2 วินาที...",
+	["Rejoin teleport failed"] = "เข้าเซิร์ฟใหม่ไม่สำเร็จ",
+	["Locked: add username to LockedScriptUsers"] = "ล็อก: เพิ่มชื่อผู้ใช้ใน LockedScriptUsers"
+}
+
+State.TranslationPatterns = {
+	{ "^Player left: (.+)$", "ผู้เล่นออก: %1" },
+	{ "^Player: (.+)$", "ผู้เล่น: %1" },
+	{ "^Rune gone: (.+)$", "รูนหาย: %1" },
+	{ "^Rune: (.+)$", "รูน: %1" },
+	{ "^Dig Rune gone: (.+)$", "รูนที่ขุดหาย: %1" },
+	{ "^Dig Rune: (.+)$", "ขุดรูน: %1" },
+	{ "^Rune Level: (%d+) selected$", "ระดับรูน: เลือก %1" },
+	{ "^Rune Level: (.+)$", "ระดับรูน: %1" },
+	{ "^Gear: Buy All$", "อุปกรณ์: ซื้อทั้งหมด" },
+	{ "^Gear: (%d+) selected$", "อุปกรณ์: เลือก %1" },
+	{ "^Gear: (.+)$", "อุปกรณ์: %1" },
+	{ "^Radar: Buy All$", "เรดาร์: ซื้อทั้งหมด" },
+	{ "^Radar: (%d+) selected$", "เรดาร์: เลือก %1" },
+	{ "^Radar: (.+)$", "เรดาร์: %1" },
+	{ "^Runes: (%d+) selected$", "รูน: เลือก %1" },
+	{ "^Place Runes: (%d+) selected$", "วางรูน: เลือก %1" },
+	{ "^Place: (.+)$", "วาง: %1" },
+	{ "^Selected TP: (.+)$", "เลือกวาร์ป: %1" },
+	{ "^Selected Rune TP: (.+)$", "เลือกรูนสำหรับวาร์ป: %1" },
+	{ "^Selected Dig Rune: (.+)$", "เลือกรูนสำหรับขุด: %1" },
+	{ "^Farm ON | (.+)$", "ฟาร์ม เปิด | %1" },
+	{ "^Dig loop ON %-%> (.+)$", "ขุดซ้ำ เปิด -> %1" },
+	{ "^Rune farm dig %-%> (.+)$", "ฟาร์มรูนกำลังขุด -> %1" },
+	{ "^Rune farm ON %-%> (.+)$", "ฟาร์มรูน เปิด -> %1" },
+	{ "^No rune level: (.+)$", "ไม่พบรูนระดับ: %1" },
+	{ "^Rune ESP ON | (%d+) shown$", "ESP รูน เปิด | แสดง %1" },
+	{ "^TP ON %-%> (.+)$", "วาร์ป เปิด -> %1" },
+	{ "^Rune TP ON center %-%> (.+)$", "วาร์ปรูน เปิด -> %1" },
+	{ "^Speed (.+) ON$", "ความเร็ว %1 เปิด" },
+	{ "^Waiting for (.+) character$", "กำลังรอตัวละครของ %1" },
+	{ "^TP target left: (.+)$", "เป้าหมายวาร์ปออก: %1" },
+	{ "^Rune target gone: (.+)$", "รูนเป้าหมายหาย: %1" },
+	{ "^Dig Rune gone: (.+)$", "รูนที่ขุดหาย: %1" },
+	{ "^Rune has no center: (.+)$", "รูนไม่มีจุดกึ่งกลาง: %1" },
+	{ "^Player not found: (.+)$", "ไม่พบผู้เล่น: %1" },
+	{ "^Rune not found: (.+)$", "ไม่พบรูน: %1" },
+	{ "^Dig Rune not found: (.+)$", "ไม่พบรูนที่จะขุด: %1" },
+	{ "^No (.+) rune, waiting before hop$", "ไม่พบรูนระดับ %1 กำลังรอย้ายเซิร์ฟ" },
+	{ "^(.+) runes empty, hopping server$", "รูนระดับ %1 หมด กำลังย้ายเซิร์ฟ" },
+	{ "^No (.+) rune, waiting before rejoin$", "ไม่พบรูนระดับ %1 กำลังรอเข้าใหม่" },
+	{ "^(.+) runes empty, rejoining$", "รูนระดับ %1 หมด กำลังเข้าใหม่" },
+	{ "^Rune FirePrompt fired (%d+)$", "กดรูนอัตโนมัติ %1 ครั้ง" },
+	{ "^Dropped (%d+)/(%d+) backpack items(.*)$", "ดรอปของในกระเป๋า %1/%2%3" },
+	{ "^Dropped (%d+)/(%d+) Rune items$", "ดรอปรูน %1/%2 ชิ้น" }
+}
+
+State.LocalizedControls = setmetatable({}, { __mode = "k" })
+State.LocalizedPlaceholders = setmetatable({}, { __mode = "k" })
+State.LocalizationReady = false
+
+function State.Translate(text)
+	local source = tostring(text or "")
+	if State.Language ~= "TH" then
+		return source
+	end
+
+	local exact = State.Translations[source]
+	if exact then
+		return exact
+	end
+
+	for _, entry in ipairs(State.TranslationPatterns) do
+		if source:match(entry[1]) then
+			return (source:gsub(entry[1], entry[2]))
+		end
+	end
+
+	return source
+end
+
+function State.BindLocalizedControl(control)
+	if not control or control:GetAttribute("I18nBound") then
+		return
+	end
+
+	control:SetAttribute("I18nBound", true)
+	control:SetAttribute("I18nSource", tostring(control.Text or ""))
+	control:SetAttribute("I18nRendered", tostring(control.Text or ""))
+	State.LocalizedControls[control] = true
+
+	control:GetPropertyChangedSignal("Text"):Connect(function()
+		local currentText = tostring(control.Text or "")
+		if currentText == control:GetAttribute("I18nRendered") then
+			return
+		end
+
+		control:SetAttribute("I18nSource", currentText)
+		local renderedText = State.LocalizationReady and State.Translate(currentText) or currentText
+		control:SetAttribute("I18nRendered", renderedText)
+		if renderedText ~= currentText then
+			control.Text = renderedText
+		end
+	end)
+
+	if State.LocalizationReady then
+		local renderedText = State.Translate(control.Text)
+		control:SetAttribute("I18nRendered", renderedText)
+		if control.Text ~= renderedText then
+			control.Text = renderedText
+		end
+	end
+end
+
+function State.BindLocalizedPlaceholder(control)
+	if not control or control:GetAttribute("I18nPlaceholderBound") then
+		return
+	end
+
+	control:SetAttribute("I18nPlaceholderBound", true)
+	control:SetAttribute("I18nPlaceholderSource", tostring(control.PlaceholderText or ""))
+	control:SetAttribute("I18nPlaceholderRendered", tostring(control.PlaceholderText or ""))
+	State.LocalizedPlaceholders[control] = true
+
+	control:GetPropertyChangedSignal("PlaceholderText"):Connect(function()
+		local currentText = tostring(control.PlaceholderText or "")
+		if currentText == control:GetAttribute("I18nPlaceholderRendered") then
+			return
+		end
+
+		control:SetAttribute("I18nPlaceholderSource", currentText)
+		local renderedText = State.LocalizationReady and State.Translate(currentText) or currentText
+		control:SetAttribute("I18nPlaceholderRendered", renderedText)
+		if renderedText ~= currentText then
+			control.PlaceholderText = renderedText
+		end
+	end)
+
+	if State.LocalizationReady then
+		local renderedText = State.Translate(control.PlaceholderText)
+		control:SetAttribute("I18nPlaceholderRendered", renderedText)
+		if control.PlaceholderText ~= renderedText then
+			control.PlaceholderText = renderedText
+		end
+	end
+end
+
+function State.RefreshLanguage()
+	if State.UI and State.UI.LanguageButton then
+		State.UI.LanguageButton.Text = State.Language
+	end
+
+	for control in pairs(State.LocalizedControls) do
+		if control and control.Parent then
+			local source = tostring(control:GetAttribute("I18nSource") or control.Text or "")
+			local renderedText = State.Translate(source)
+			control:SetAttribute("I18nRendered", renderedText)
+			if control.Text ~= renderedText then
+				control.Text = renderedText
+			end
+		end
+	end
+
+	for control in pairs(State.LocalizedPlaceholders) do
+		if control and control.Parent then
+			local source = tostring(control:GetAttribute("I18nPlaceholderSource") or control.PlaceholderText or "")
+			local renderedText = State.Translate(source)
+			control:SetAttribute("I18nPlaceholderRendered", renderedText)
+			if control.PlaceholderText ~= renderedText then
+				control.PlaceholderText = renderedText
+			end
+		end
+	end
+end
+
+function State.SetLanguage(language, persist)
+	State.Language = tostring(language or "EN"):upper() == "TH" and "TH" or "EN"
+	Config.Language = State.Language
+	State.RefreshLanguage()
+	if persist ~= false then
+		State.SaveConfig()
+	end
 end
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
@@ -846,6 +1160,11 @@ local function create(className, props, parent)
 		object[key] = value
 	end
 	object.Parent = parent
+	if State.BindLocalizedControl and (object:IsA("TextLabel") or object:IsA("TextButton")) then
+		State.BindLocalizedControl(object)
+	elseif State.BindLocalizedPlaceholder and object:IsA("TextBox") then
+		State.BindLocalizedPlaceholder(object)
+	end
 	return object
 end
 
@@ -921,12 +1240,14 @@ local function getCharacterParts(player)
 end
 
 local UI = {}
+State.UI = UI
 local DESKTOP_HEADER_HEIGHT = 42
 local MOBILE_HEADER_HEIGHT = 40
 local CONTENT_HEIGHT = 1140
 local HORIZONTAL_CONTENT_HEIGHT = 680
 local DESKTOP_COLLAPSED_WIDTH = 390
 local MOBILE_COLLAPSED_WIDTH = 300
+UI.HorizontalViewHeight = 540
 
 local Gui = create("ScreenGui", {
 	Name = "CrystalTools_NewUI",
@@ -944,7 +1265,7 @@ end)
 local Main = create("Frame", {
 	Name = "Main",
 	Position = UDim2.new(0, 22, 0, 112),
-	Size = UDim2.new(0, 700, 0, DESKTOP_HEADER_HEIGHT + HORIZONTAL_CONTENT_HEIGHT),
+	Size = UDim2.new(0, 700, 0, DESKTOP_HEADER_HEIGHT + UI.HorizontalViewHeight),
 	BackgroundColor3 = Theme.Background,
 	BackgroundTransparency = 0,
 	BorderSizePixel = 0,
@@ -955,7 +1276,7 @@ styleSurface(Main, 6, Theme.Accent, 0.14, 1.5)
 UI.Main = Main
 UI.ExpandedSize = Main.Size
 UI.CollapsedSize = UDim2.new(0, 700, 0, DESKTOP_HEADER_HEIGHT)
-UI.ExpandedPixelSize = Vector2.new(700, DESKTOP_HEADER_HEIGHT + HORIZONTAL_CONTENT_HEIGHT)
+UI.ExpandedPixelSize = Vector2.new(700, DESKTOP_HEADER_HEIGHT + UI.HorizontalViewHeight)
 UI.CollapsedPixelSize = Vector2.new(700, DESKTOP_HEADER_HEIGHT)
 
 create("UIGradient", {
@@ -985,7 +1306,7 @@ create("UIGradient", {
 
 local HeaderTitle = create("TextLabel", {
 	Position = UDim2.new(0, 16, 0, 0),
-	Size = UDim2.new(1, -108, 1, 0),
+	Size = UDim2.new(1, -144, 1, 0),
 	BackgroundTransparency = 1,
 	Text = "BENJAMINX | Mine a Mountain",
 	TextColor3 = Theme.Text,
@@ -994,6 +1315,19 @@ local HeaderTitle = create("TextLabel", {
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextTruncate = Enum.TextTruncate.AtEnd
 }, Header)
+
+UI.LanguageButton = create("TextButton", {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -80, 0.5, 0),
+	Size = UDim2.new(0, 30, 0, 24),
+	BackgroundColor3 = Theme.ButtonDark,
+	BorderSizePixel = 0,
+	Text = State.Language,
+	TextColor3 = Theme.Text,
+	TextSize = 11,
+	Font = Enum.Font.GothamBold
+}, Header)
+styleSurface(UI.LanguageButton, 8, Theme.GlowSoft, 0.35, 1)
 
 local CollapseButton = create("TextButton", {
 	AnchorPoint = Vector2.new(1, 0.5),
@@ -1555,7 +1889,7 @@ UI.DigBoulderDropdownButton = create("TextButton", {
 	Size = UDim2.new(1 / 2, -19, 0, 34),
 	BackgroundColor3 = Theme.Panel,
 	BorderSizePixel = 0,
-	Text = "Select Dig Boulder",
+	Text = "Select Dig Rune",
 	TextColor3 = Theme.Text,
 	TextSize = 12,
 	Font = Enum.Font.Gotham,
@@ -1609,7 +1943,7 @@ UI.BoulderLevelDropdownButton = create("TextButton", {
 	Size = UDim2.new(1 / 2, -19, 0, 34),
 	BackgroundColor3 = Theme.Panel,
 	BorderSizePixel = 0,
-	Text = "Level: All",
+	Text = "Rune Level: All",
 	TextColor3 = Theme.Text,
 	TextSize = 12,
 	Font = Enum.Font.Gotham,
@@ -1627,7 +1961,7 @@ UI.BoulderLevelFarmButton = create("TextButton", {
 	Size = UDim2.new(1 / 2, -19, 0, 34),
 	BackgroundColor3 = Theme.ButtonDark,
 	BorderSizePixel = 0,
-	Text = "LEVEL FARM OFF",
+	Text = "RUNE FARM OFF",
 	TextColor3 = Theme.Text,
 	TextSize = 12,
 	Font = Enum.Font.GothamBold
@@ -1733,7 +2067,7 @@ local BoulderTPLabel = create("TextLabel", {
 	Position = UDim2.new(0, 14, 0, 760),
 	Size = UDim2.new(1, -28, 0, 18),
 	BackgroundTransparency = 1,
-	Text = "Boulder TP",
+	Text = "Rune TP",
 	TextColor3 = Theme.Muted,
 	TextSize = 12,
 	Font = Enum.Font.GothamMedium,
@@ -1745,7 +2079,7 @@ local BoulderDropdownButton = create("TextButton", {
 	Size = UDim2.new(1, -28, 0, 32),
 	BackgroundColor3 = Theme.Panel,
 	BorderSizePixel = 0,
-	Text = "Select boulder",
+	Text = "Select rune",
 	TextColor3 = Theme.Text,
 	TextSize = 12,
 	Font = Enum.Font.Gotham,
@@ -1791,7 +2125,7 @@ local BoulderTeleportButton = create("TextButton", {
 	Size = UDim2.new(1 / 4, -13, 0, 34),
 	BackgroundColor3 = Theme.Button,
 	BorderSizePixel = 0,
-	Text = "Start Boulder TP",
+	Text = "Start Rune TP",
 	TextColor3 = Theme.Text,
 	TextSize = 11,
 	Font = Enum.Font.GothamBold
@@ -2324,7 +2658,7 @@ function State.SetDigReplayEnabled(enabled, persist)
 			if State.RefreshDigBoulderDropdownOptions then
 				State.RefreshDigBoulderDropdownOptions()
 			end
-			setStatus("Select Dig Boulder first", Theme.Bad)
+			setStatus("Select Dig Rune first", Theme.Bad)
 			if persist ~= false then
 				State.SaveConfig()
 			end
@@ -2332,7 +2666,7 @@ function State.SetDigReplayEnabled(enabled, persist)
 		end
 
 		State.RunDigReplayLoop()
-		setStatus("Dig loop ON -> " .. (State.GetDigBoulderDisplayName and State.GetDigBoulderDisplayName() or "Boulder"), Theme.Good)
+		setStatus("Dig loop ON -> " .. (State.GetDigBoulderDisplayName and State.GetDigBoulderDisplayName() or "Rune"), Theme.Good)
 	else
 		setStatus("Dig loop stopped", Theme.Muted)
 	end
@@ -2645,7 +2979,7 @@ local function applyResponsiveLayout(centerMobile)
 		local minimumHeight = math.min(headerHeight + (mobile and 110 or 180), safeHeight)
 		width = math.min(mobile and 720 or 760, math.max(minimumWidth, viewport.X - (mobile and 28 or 72)))
 		width = math.max(math.min(minimumWidth, safeWidth), math.min(width, safeWidth))
-		height = math.min(headerHeight + HORIZONTAL_CONTENT_HEIGHT, math.max(minimumHeight, mobile and math.floor(viewport.Y * (mobileLandscape and 0.82 or 0.78)) or math.min(viewport.Y - 32, headerHeight + 760)))
+		height = math.min(headerHeight + UI.HorizontalViewHeight, math.max(minimumHeight, mobile and math.floor(viewport.Y * (mobileLandscape and 0.82 or 0.78)) or math.min(viewport.Y - 32, headerHeight + UI.HorizontalViewHeight)))
 		height = math.max(minimumHeight, math.min(height, safeHeight))
 	else
 		local minimumWidth = math.min(260, safeWidth)
@@ -2686,7 +3020,9 @@ local function applyResponsiveLayout(centerMobile)
 	CloseButton.Size = UDim2.new(0, headerButtonWidth, 0, headerButtonHeight)
 	CollapseButton.Position = UDim2.new(1, -(edgePadding + headerButtonWidth + headerGap), 0.5, 0)
 	CollapseButton.Size = UDim2.new(0, headerButtonWidth, 0, headerButtonHeight)
-	HeaderTitle.Size = UDim2.new(1, -(edgePadding + (headerButtonWidth * 2) + headerGap + 16), 1, 0)
+	UI.LanguageButton.Position = UDim2.new(1, -(edgePadding + (headerButtonWidth * 2) + (headerGap * 2)), 0.5, 0)
+	UI.LanguageButton.Size = UDim2.new(0, headerButtonWidth, 0, headerButtonHeight)
+	HeaderTitle.Size = UDim2.new(1, -(edgePadding + (headerButtonWidth * 3) + (headerGap * 2) + 16), 1, 0)
 	HeaderTitle.TextSize = mobile and 14 or 15
 
 	if horizontalLayout then
@@ -3494,7 +3830,7 @@ end
 
 local function getBoulderTargetDisplayName(target)
 	if not target then
-		return tostring(State.SelectedBoulderName or "Boulder")
+		return tostring(State.SelectedBoulderName or "Rune")
 	end
 
 	local targets = getDigBoulderTargets()
@@ -3888,7 +4224,7 @@ end
 function State.GetDigBoulderDisplayName(target)
 	target = target or State.GetSelectedDigBoulderTarget()
 	if not target then
-		return tostring(State.SelectedDigBoulderName or "Boulder")
+		return tostring(State.SelectedDigBoulderName or "Rune")
 	end
 
 	local targets = getDigBoulderTargets()
@@ -4321,7 +4657,7 @@ local function setBoulderTarget(target, persist)
 		updateBoulderDropdownText()
 	end
 
-	setStatus("Selected Boulder TP: " .. getBoulderTargetDisplayName(target), Theme.Muted)
+	setStatus("Selected Rune TP: " .. getBoulderTargetDisplayName(target), Theme.Muted)
 	if persist ~= false then
 		State.SaveConfig()
 	end
@@ -4345,7 +4681,7 @@ function State.SetDigBoulderTarget(target, persist)
 		State.UpdateDigBoulderDropdownText()
 	end
 
-	setStatus("Selected Dig Boulder: " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
+	setStatus("Selected Dig Rune: " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
 	if persist ~= false then
 		State.SaveConfig()
 	end
@@ -4355,11 +4691,11 @@ end
 function State.UpdateDigBoulderDropdownText()
 	local target = State.GetSelectedDigBoulderTarget()
 	if target then
-		UI.DigBoulderDropdownButton.Text = "Dig: " .. State.GetDigBoulderDisplayName(target)
+		UI.DigBoulderDropdownButton.Text = "Dig Rune: " .. State.GetDigBoulderDisplayName(target)
 	elseif State.SelectedDigBoulderName then
-		UI.DigBoulderDropdownButton.Text = "Dig gone: " .. tostring(State.SelectedDigBoulderName)
+		UI.DigBoulderDropdownButton.Text = "Dig Rune gone: " .. tostring(State.SelectedDigBoulderName)
 	else
-		UI.DigBoulderDropdownButton.Text = "Select Dig Boulder"
+		UI.DigBoulderDropdownButton.Text = "Select Dig Rune"
 	end
 end
 
@@ -4379,7 +4715,7 @@ function State.RefreshDigBoulderDropdownOptions()
 			Name = "DigBoulderEmptyOption",
 			Size = UDim2.new(1, -12, 0, optionHeight),
 			BackgroundTransparency = 1,
-			Text = "No boulders found",
+			Text = "No runes found",
 			TextColor3 = Theme.Muted,
 			TextSize = 13,
 			Font = Enum.Font.GothamBold,
@@ -4531,10 +4867,10 @@ end
 function State.UpdateBoulderLevelDropdownText()
 	if UI.BoulderLevelDropdownButton then
 		if not State.IsLockedScriptUnlocked() then
-			UI.BoulderLevelDropdownButton.Text = "Level: LOCKED"
+			UI.BoulderLevelDropdownButton.Text = "Rune Level: LOCKED"
 			return
 		end
-		UI.BoulderLevelDropdownButton.Text = "Level: " .. State.GetBoulderLevelSummary()
+		UI.BoulderLevelDropdownButton.Text = "Rune Level: " .. State.GetBoulderLevelSummary()
 	end
 end
 
@@ -4544,16 +4880,16 @@ function State.UpdateBoulderLevelFarmButton()
 	end
 
 	if not State.IsLockedScriptUnlocked() then
-		UI.BoulderLevelFarmButton.Text = "LEVEL LOCKED"
+		UI.BoulderLevelFarmButton.Text = "RUNE FARM LOCKED"
 		UI.BoulderLevelFarmButton.BackgroundColor3 = Theme.ButtonDark
 		return
 	end
 
 	if State.BoulderLevelFarmEnabled then
-		UI.BoulderLevelFarmButton.Text = "LEVEL FARM ON"
+		UI.BoulderLevelFarmButton.Text = "RUNE FARM ON"
 		UI.BoulderLevelFarmButton.BackgroundColor3 = Theme.Good
 	else
-		UI.BoulderLevelFarmButton.Text = "LEVEL FARM OFF"
+		UI.BoulderLevelFarmButton.Text = "RUNE FARM OFF"
 		UI.BoulderLevelFarmButton.BackgroundColor3 = Theme.ButtonDark
 	end
 end
@@ -4631,7 +4967,7 @@ function State.RefreshBoulderLevelDropdownOptions()
 			Name = "BoulderLevelEmptyOption",
 			Size = UDim2.new(1, -12, 0, optionHeight),
 			BackgroundTransparency = 1,
-			Text = "No boulder levels found",
+			Text = "No rune levels found",
 			TextColor3 = Theme.Muted,
 			TextSize = 13,
 			Font = Enum.Font.GothamBold,
@@ -4838,7 +5174,7 @@ function State.RunBoulderLevelFarmLoop()
 								end
 							elseif not State.DigReplayEnabled then
 								State.SetDigReplayEnabled(true, false)
-								setStatus("Level farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
+								setStatus("Rune farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
 							end
 						end
 
@@ -4856,7 +5192,7 @@ function State.RunBoulderLevelFarmLoop()
 								end
 							elseif not State.DigReplayEnabled then
 								State.SetDigReplayEnabled(true, false)
-								setStatus("Level farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
+								setStatus("Rune farm dig -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
 							end
 						end
 
@@ -4864,12 +5200,12 @@ function State.RunBoulderLevelFarmLoop()
 					end
 					State.SetDigReplayEnabled(false, false)
 					if State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() ~= target then
-						setStatus("Boulder gone, waiting before next", Theme.Muted)
+						setStatus("Rune gone, waiting before next", Theme.Muted)
 						task.wait(Config.BoulderLevelFarmNextDelay or 1.5)
 					end
 				else
 					State.SetDigReplayEnabled(false, false)
-					setStatus("No boulder level: " .. State.GetBoulderLevelSummary(), Theme.Muted)
+					setStatus("No rune level: " .. State.GetBoulderLevelSummary(), Theme.Muted)
 					task.wait(1)
 				end
 			else
@@ -4913,7 +5249,7 @@ function State.SetBoulderLevelFarmEnabled(enabled, persist)
 	end
 
 	State.UpdateBoulderLevelFarmButton()
-	setStatus(State.BoulderLevelFarmEnabled and ("Boulder level farm ON -> " .. State.GetBoulderLevelSummary()) or "Boulder level farm OFF", State.BoulderLevelFarmEnabled and Theme.Good or Theme.Muted)
+	setStatus(State.BoulderLevelFarmEnabled and ("Rune farm ON -> " .. State.GetBoulderLevelSummary()) or "Rune farm OFF", State.BoulderLevelFarmEnabled and Theme.Good or Theme.Muted)
 	if persist ~= false then
 		State.SaveConfig()
 	end
@@ -4978,7 +5314,7 @@ function State.SetBoulderHopEnabled(enabled, persist)
 	State.BoulderHopNoTargetSince = nil
 	State.LastBoulderHopTick = 0
 	State.UpdateBoulderHopButton()
-	setStatus(State.BoulderHopEnabled and "Boulder empty hop ON" or "Boulder empty hop OFF", State.BoulderHopEnabled and Theme.Good or Theme.Muted)
+	setStatus(State.BoulderHopEnabled and "Rune empty hop ON" or "Rune empty hop OFF", State.BoulderHopEnabled and Theme.Good or Theme.Muted)
 	if persist ~= false then
 		State.SaveConfig()
 	end
@@ -5003,7 +5339,7 @@ function State.SetBoulderRejoinEnabled(enabled, persist)
 	State.BoulderRejoinNoTargetSince = nil
 	State.LastBoulderRejoinTick = 0
 	State.UpdateBoulderRejoinButton()
-	setStatus(State.BoulderRejoinEnabled and "Boulder empty rejoin ON" or "Boulder empty rejoin OFF", State.BoulderRejoinEnabled and Theme.Good or Theme.Muted)
+	setStatus(State.BoulderRejoinEnabled and "Rune empty rejoin ON" or "Rune empty rejoin OFF", State.BoulderRejoinEnabled and Theme.Good or Theme.Muted)
 	if persist ~= false then
 		State.SaveConfig()
 	end
@@ -5099,14 +5435,14 @@ function State.TryBoulderEmptyHop()
 	local now = os.clock()
 	if not State.BoulderHopNoTargetSince then
 		State.BoulderHopNoTargetSince = now
-		setStatus("No " .. State.GetBoulderLevelSummary() .. " boulder, waiting before hop", Theme.Muted)
+		setStatus("No " .. State.GetBoulderLevelSummary() .. " rune, waiting before hop", Theme.Muted)
 		return
 	end
 	if now - State.BoulderHopNoTargetSince < (Config.BoulderHopEmptyDelay or 2) then
 		return
 	end
 
-	setStatus(State.GetBoulderLevelSummary() .. " boulders empty, hopping server", Theme.Good)
+	setStatus(State.GetBoulderLevelSummary() .. " runes empty, hopping server", Theme.Good)
 	task.spawn(function()
 		local ok, result = pcall(function()
 			return State.HopServer(Config.BoulderHopSort or "Asc")
@@ -5160,14 +5496,14 @@ function State.TryBoulderEmptyRejoin()
 	local now = os.clock()
 	if not State.BoulderRejoinNoTargetSince then
 		State.BoulderRejoinNoTargetSince = now
-		setStatus("No " .. State.GetBoulderLevelSummary() .. " boulder, waiting before rejoin", Theme.Muted)
+		setStatus("No " .. State.GetBoulderLevelSummary() .. " rune, waiting before rejoin", Theme.Muted)
 		return
 	end
 	if now - State.BoulderRejoinNoTargetSince < (Config.BoulderHopEmptyDelay or 2) then
 		return
 	end
 
-	setStatus(State.GetBoulderLevelSummary() .. " boulders empty, rejoining", Theme.Good)
+	setStatus(State.GetBoulderLevelSummary() .. " runes empty, rejoining", Theme.Good)
 	task.spawn(function()
 		local ok, result = pcall(function()
 			return State.RejoinCurrentServer()
@@ -6053,11 +6389,11 @@ end
 updateBoulderDropdownText = function()
 	local target = getSelectedBoulderTarget()
 	if target then
-		BoulderDropdownButton.Text = "Boulder: " .. getBoulderTargetDisplayName(target)
+		BoulderDropdownButton.Text = "Rune: " .. getBoulderTargetDisplayName(target)
 	elseif State.SelectedBoulderName then
-		BoulderDropdownButton.Text = "Boulder gone: " .. tostring(State.SelectedBoulderName)
+		BoulderDropdownButton.Text = "Rune gone: " .. tostring(State.SelectedBoulderName)
 	else
-		BoulderDropdownButton.Text = "Select boulder"
+		BoulderDropdownButton.Text = "Select rune"
 	end
 end
 
@@ -6077,7 +6413,7 @@ refreshBoulderDropdownOptions = function()
 			Name = "BoulderEmptyOption",
 			Size = UDim2.new(1, -12, 0, optionHeight),
 			BackgroundTransparency = 1,
-			Text = "No boulders found",
+			Text = "No runes found",
 			TextColor3 = Theme.Muted,
 			TextSize = 13,
 			Font = Enum.Font.GothamBold,
@@ -6850,11 +7186,11 @@ setBoulderEspEnabled = function(enabled, persist)
 	refreshBoulderEsp()
 
 	if State.BoulderEspEnabled then
-		setStatus(("Boulder ESP ON | %d shown"):format(#getBoulderTargets()), Theme.Good)
-		log("Boulder ESP ON")
+		setStatus(("Rune ESP ON | %d shown"):format(#getBoulderTargets()), Theme.Good)
+		log("Rune ESP ON")
 	else
-		setStatus("Boulder ESP stopped", Theme.Muted)
-		log("Boulder ESP OFF")
+		setStatus("Rune ESP stopped", Theme.Muted)
+		log("Rune ESP OFF")
 	end
 	if persist ~= false then
 		State.SaveConfig()
@@ -6980,7 +7316,7 @@ setBoulderTeleporting = function(enabled, persist)
 			refreshBoulderDropdownOptions()
 			UI.RuneDropdownList.Visible = false
 			BoulderDropdownList.Visible = true
-			setStatus("Select a boulder before starting TP", Theme.Bad)
+			setStatus("Select a rune before starting TP", Theme.Bad)
 			if persist ~= false then
 				State.SaveConfig()
 			end
@@ -6995,12 +7331,12 @@ setBoulderTeleporting = function(enabled, persist)
 		State.RefreshNoclip()
 		State.LastBoulderTeleportTick = 0
 		BoulderDropdownList.Visible = false
-		setStatus("Boulder TP ON center -> " .. getBoulderTargetDisplayName(getSelectedBoulderTarget()), Theme.Good)
-		log("Boulder TP ON", State.SelectedBoulderName)
+		setStatus("Rune TP ON center -> " .. getBoulderTargetDisplayName(getSelectedBoulderTarget()), Theme.Good)
+		log("Rune TP ON", State.SelectedBoulderName)
 	else
 		State.RefreshNoclip()
-		setStatus("Boulder TP stopped", Theme.Muted)
-		log("Boulder TP OFF")
+		setStatus("Rune TP stopped", Theme.Muted)
+		log("Rune TP OFF")
 	end
 	if persist ~= false then
 		State.SaveConfig()
@@ -7020,25 +7356,25 @@ local function boulderTeleportHeartbeat()
 
 	local target = getSelectedBoulderTarget()
 	if not target then
-		local targetName = State.SelectedBoulderName or "selected boulder"
+		local targetName = State.SelectedBoulderName or "selected rune"
 		State.BoulderTeleporting = false
 		State.SelectedBoulderTarget = nil
 		State.RefreshNoclip()
 		updateBoulderTeleportButton()
 		updateBoulderDropdownText()
-		setStatus("Boulder target gone: " .. tostring(targetName), Theme.Bad)
+		setStatus("Rune target gone: " .. tostring(targetName), Theme.Bad)
 		return
 	end
 
 	local teleportCFrame = getBoulderTeleportCFrame(target)
 	if not teleportCFrame then
-		setStatus("Boulder has no center: " .. target.Name, Theme.Bad)
+		setStatus("Rune has no center: " .. target.Name, Theme.Bad)
 		return
 	end
 
 	State.RefreshNoclip()
 	if not teleportLocalCharacter(teleportCFrame) then
-		setStatus("Character not found for Boulder TP", Theme.Bad)
+		setStatus("Character not found for Rune TP", Theme.Bad)
 	end
 end
 
@@ -7053,13 +7389,13 @@ local function validateBoulderSelection()
 		return
 	end
 
-	local targetName = State.SelectedBoulderName or "selected boulder"
+	local targetName = State.SelectedBoulderName or "selected rune"
 	State.SelectedBoulderTarget = nil
 	if State.BoulderTeleporting then
 		State.BoulderTeleporting = false
 		State.RefreshNoclip()
 		updateBoulderTeleportButton()
-		setStatus("Boulder target gone: " .. tostring(targetName), Theme.Bad)
+		setStatus("Rune target gone: " .. tostring(targetName), Theme.Bad)
 	end
 end
 
@@ -7072,12 +7408,12 @@ function State.ValidateDigBoulderSelection()
 		return
 	end
 
-	local targetName = State.SelectedDigBoulderName or "selected dig boulder"
+	local targetName = State.SelectedDigBoulderName or "selected dig rune"
 	State.SelectedDigBoulderTarget = nil
 	State.SelectedDigBoulderName = nil
 	if State.DigReplayEnabled then
 		State.SetDigReplayEnabled(false)
-		setStatus("Dig Boulder gone: " .. tostring(targetName), Theme.Bad)
+		setStatus("Dig Rune gone: " .. tostring(targetName), Theme.Bad)
 	end
 end
 
@@ -8216,6 +8552,10 @@ connect(CollapseButton.Activated, function()
 	setCollapsed(not State.Collapsed)
 end)
 
+connect(UI.LanguageButton.Activated, function()
+	State.SetLanguage(State.Language == "EN" and "TH" or "EN")
+end)
+
 connect(FilterTypeButton.Activated, function()
 	toggleFilterEnabled("Weight")
 end)
@@ -8988,7 +9328,7 @@ function State.SetDigBoulder(modelNameOrIndex, persist)
 		end
 	end
 
-	setStatus("Dig Boulder not found: " .. wanted, Theme.Bad)
+	setStatus("Dig Rune not found: " .. wanted, Theme.Bad)
 	return false
 end
 
@@ -9048,7 +9388,7 @@ function State.SetBoulderTarget(modelNameOrIndex, persist)
 		end
 	end
 
-	setStatus("Boulder not found: " .. wanted, Theme.Bad)
+	setStatus("Rune not found: " .. wanted, Theme.Bad)
 	return false
 end
 
@@ -9434,6 +9774,8 @@ State.UpdateRadarShopBuyAllButton()
 State.UpdateBuyRadarButtonText()
 State.UpdateRadarDropdownText()
 setStatus("Ready", Theme.Muted)
+State.LocalizationReady = true
+State.RefreshLanguage()
 
 if Config.FarmStart
 	or Config.PlayerTeleportStart
