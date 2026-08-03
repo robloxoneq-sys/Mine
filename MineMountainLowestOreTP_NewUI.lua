@@ -923,8 +923,8 @@ end
 local UI = {}
 local DESKTOP_HEADER_HEIGHT = 42
 local MOBILE_HEADER_HEIGHT = 40
-local CONTENT_HEIGHT = 2120
-local HORIZONTAL_CONTENT_HEIGHT = 920
+local CONTENT_HEIGHT = 1140
+local HORIZONTAL_CONTENT_HEIGHT = 680
 local DESKTOP_COLLAPSED_WIDTH = 390
 local MOBILE_COLLAPSED_WIDTH = 300
 
@@ -1959,7 +1959,7 @@ local BuyBombButton = create("TextButton", {
 	Size = UDim2.new(1, -28, 0, 34),
 	BackgroundColor3 = Theme.Button,
 	BorderSizePixel = 0,
-	Text = "Start Buy Selected",
+	Text = "START BUY",
 	TextColor3 = Theme.Text,
 	TextSize = 14,
 	Font = Enum.Font.GothamBold
@@ -1972,7 +1972,7 @@ UI.BuyAllBombButton = create("TextButton", {
 	Size = UDim2.new(1 / 2, -18, 0, 34),
 	BackgroundColor3 = Theme.ButtonDark,
 	BorderSizePixel = 0,
-	Text = "Buy All OFF",
+	Text = "ALL OFF",
 	TextColor3 = Theme.Text,
 	TextSize = 13,
 	Font = Enum.Font.GothamBold
@@ -2038,7 +2038,7 @@ UI.BuyAllRadarButton = create("TextButton", {
 	Size = UDim2.new(1 / 2, -18, 0, 34),
 	BackgroundColor3 = Theme.ButtonDark,
 	BorderSizePixel = 0,
-	Text = "Buy All Radar OFF",
+	Text = "ALL OFF",
 	TextColor3 = Theme.Text,
 	TextSize = 13,
 	Font = Enum.Font.GothamBold
@@ -2050,7 +2050,7 @@ UI.BuyRadarButton = create("TextButton", {
 	Size = UDim2.new(1 / 2, -18, 0, 34),
 	BackgroundColor3 = Theme.Button,
 	BorderSizePixel = 0,
-	Text = "Start Buy Radar",
+	Text = "START BUY",
 	TextColor3 = Theme.Text,
 	TextSize = 14,
 	Font = Enum.Font.GothamBold
@@ -2198,6 +2198,33 @@ do
 		if list:IsA("ScrollingFrame") then
 			list.ScrollBarImageColor3 = Theme.GlowSoft
 		end
+	end
+
+	for _, button in ipairs({
+		UI.DropRuneButton,
+		UI.AutoPlaceRuneButton,
+		UI.DigReplayButton,
+		UI.BoulderLevelFarmButton,
+		PlayerTeleportButton,
+		BoulderTeleportButton,
+		UI.BoulderNoclipButton,
+		BoulderEspButton,
+		BoulderPromptButton,
+		UI.BoulderHopButton,
+		UI.BoulderRejoinButton,
+		UI.FloatButton,
+		UI.SpeedButton,
+		UI.InfiniteJumpButton,
+		UI.BuyAllBombButton,
+		BuyBombButton,
+		UI.BuyAllRadarButton,
+		UI.BuyRadarButton
+	}) do
+		button.TextScaled = true
+		create("UITextSizeConstraint", {
+			MinTextSize = 7,
+			MaxTextSize = 11
+		}, button)
 	end
 end
 
@@ -2352,133 +2379,133 @@ local function applyVerticalControlsLayout()
 	CrystalFarmLabel.Position = UDim2.new(0, 14, 0, 14)
 	CrystalFarmLabel.Size = UDim2.new(1, -28, 0, 18)
 	FilterTypeButton.Position = UDim2.new(0, 14, 0, 38)
-	FilterTypeButton.Size = UDim2.new(1, -28, 0, 30)
-	WeightModeButton.Position = UDim2.new(0, 14, 0, 74)
-	WeightModeButton.Size = UDim2.new(1, -28, 0, 30)
-	WeightInput.Position = UDim2.new(0, 14, 0, 110)
-	WeightInput.Size = UDim2.new(1, -28, 0, 30)
-	MoneyToggleButton.Position = UDim2.new(0, 14, 0, 146)
-	MoneyToggleButton.Size = UDim2.new(1, -28, 0, 30)
-	MoneyModeButton.Position = UDim2.new(0, 14, 0, 182)
-	MoneyModeButton.Size = UDim2.new(1, -28, 0, 30)
-	MoneyInput.Position = UDim2.new(0, 14, 0, 218)
-	MoneyInput.Size = UDim2.new(1, -28, 0, 30)
-	LuckToggleButton.Position = UDim2.new(0, 14, 0, 258)
-	LuckToggleButton.Size = UDim2.new(1, -28, 0, 30)
-	LuckModeButton.Position = UDim2.new(0, 14, 0, 294)
-	LuckModeButton.Size = UDim2.new(1, -28, 0, 30)
-	LuckInput.Position = UDim2.new(0, 14, 0, 330)
-	LuckInput.Size = UDim2.new(1, -28, 0, 30)
+	FilterTypeButton.Size = UDim2.new(0.42, -20, 0, 30)
+	WeightModeButton.Position = UDim2.new(0.42, 4, 0, 38)
+	WeightModeButton.Size = UDim2.new(0.28, -12, 0, 30)
+	WeightInput.Position = UDim2.new(0.7, 8, 0, 38)
+	WeightInput.Size = UDim2.new(0.3, -22, 0, 30)
+	MoneyToggleButton.Position = UDim2.new(0, 14, 0, 76)
+	MoneyToggleButton.Size = UDim2.new(0.42, -20, 0, 30)
+	MoneyModeButton.Position = UDim2.new(0.42, 4, 0, 76)
+	MoneyModeButton.Size = UDim2.new(0.28, -12, 0, 30)
+	MoneyInput.Position = UDim2.new(0.7, 8, 0, 76)
+	MoneyInput.Size = UDim2.new(0.3, -22, 0, 30)
+	LuckToggleButton.Position = UDim2.new(0, 14, 0, 114)
+	LuckToggleButton.Size = UDim2.new(0.42, -20, 0, 30)
+	LuckModeButton.Position = UDim2.new(0.42, 4, 0, 114)
+	LuckModeButton.Size = UDim2.new(0.28, -12, 0, 30)
+	LuckInput.Position = UDim2.new(0.7, 8, 0, 114)
+	LuckInput.Size = UDim2.new(0.3, -22, 0, 30)
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
-	UI.FarmDistanceInput.Position = UDim2.new(0, 14, 0, 370)
+	UI.FarmDistanceInput.Position = UDim2.new(0, 14, 0, 158)
 	UI.FarmDistanceInput.Size = UDim2.new(1 / 2, -19, 0, 34)
-	FarmButton.Position = UDim2.new(1 / 2, 5, 0, 370)
+	FarmButton.Position = UDim2.new(1 / 2, 5, 0, 158)
 	FarmButton.Size = UDim2.new(1 / 2, -19, 0, 34)
 
-	CrystalActionsLabel.Position = UDim2.new(0, 14, 0, 420)
+	CrystalActionsLabel.Position = UDim2.new(0, 14, 0, 208)
 	CrystalActionsLabel.Size = UDim2.new(1, -28, 0, 18)
-	DropAllButton.Position = UDim2.new(0, 14, 0, 444)
+	DropAllButton.Position = UDim2.new(0, 14, 0, 232)
 	DropAllButton.Size = UDim2.new(1, -28, 0, 34)
 
-	UI.MoneyDropLabel.Position = UDim2.new(0, 14, 0, 494)
+	UI.MoneyDropLabel.Position = UDim2.new(0, 14, 0, 282)
 	UI.MoneyDropLabel.Size = UDim2.new(1, -28, 0, 18)
-	UI.MoneyDropInput.Position = UDim2.new(0, 14, 0, 518)
+	UI.MoneyDropInput.Position = UDim2.new(0, 14, 0, 306)
 	UI.MoneyDropInput.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.DropMoneyButton.Position = UDim2.new(1 / 2, 5, 0, 518)
+	UI.DropMoneyButton.Position = UDim2.new(1 / 2, 5, 0, 306)
 	UI.DropMoneyButton.Size = UDim2.new(1 / 2, -19, 0, 34)
 
-	UI.RuneDropLabel.Position = UDim2.new(0, 14, 0, 568)
+	UI.RuneDropLabel.Position = UDim2.new(0, 14, 0, 356)
 	UI.RuneDropLabel.Size = UDim2.new(1, -28, 0, 18)
-	UI.RuneDropdownButton.Position = UDim2.new(0, 14, 0, 592)
-	UI.RuneDropdownButton.Size = UDim2.new(1, -28, 0, 32)
-	UI.RuneDropdownList.Position = UDim2.new(0, 14, 0, 630)
+	UI.DropRuneButton.Position = UDim2.new(0, 14, 0, 380)
+	UI.DropRuneButton.Size = UDim2.new(0.28, -12, 0, 34)
+	UI.RuneAmountInput.Position = UDim2.new(0.28, 8, 0, 380)
+	UI.RuneAmountInput.Size = UDim2.new(0.18, -8, 0, 34)
+	UI.RuneDropdownButton.Position = UDim2.new(0.46, 10, 0, 380)
+	UI.RuneDropdownButton.Size = UDim2.new(0.54, -24, 0, 34)
+	UI.RuneDropdownList.Position = UDim2.new(0, 14, 0, 420)
 	UI.RuneDropdownList.Size = UDim2.new(1, -28, 0, 102)
-	UI.RuneAmountInput.Position = UDim2.new(0, 14, 0, 744)
-	UI.RuneAmountInput.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.DropRuneButton.Position = UDim2.new(1 / 2, 5, 0, 744)
-	UI.DropRuneButton.Size = UDim2.new(1 / 2, -19, 0, 34)
 
-	UI.RunePlaceLabel.Position = UDim2.new(0, 14, 0, 794)
+	UI.RunePlaceLabel.Position = UDim2.new(0, 14, 0, 430)
 	UI.RunePlaceLabel.Size = UDim2.new(1, -28, 0, 18)
-	UI.AutoPlaceRuneButton.Position = UDim2.new(0, 14, 0, 818)
+	UI.AutoPlaceRuneButton.Position = UDim2.new(0, 14, 0, 454)
 	UI.AutoPlaceRuneButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.RunePlaceDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 818)
+	UI.RunePlaceDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 454)
 	UI.RunePlaceDropdownButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.RunePlaceDropdownList.Position = UDim2.new(0, 14, 0, 858)
+	UI.RunePlaceDropdownList.Position = UDim2.new(0, 14, 0, 494)
 	UI.RunePlaceDropdownList.Size = UDim2.new(1, -28, 0, 102)
 
-	UI.DigReplayButton.Position = UDim2.new(0, 14, 0, 868)
+	UI.DigReplayButton.Position = UDim2.new(0, 14, 0, 508)
 	UI.DigReplayButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.DigBoulderDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 868)
+	UI.DigBoulderDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 508)
 	UI.DigBoulderDropdownButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.DigBoulderDropdownList.Position = UDim2.new(0, 14, 0, 910)
+	UI.DigBoulderDropdownList.Position = UDim2.new(0, 14, 0, 548)
 	UI.DigBoulderDropdownList.Size = UDim2.new(1, -28, 0, 102)
 
-	UI.BoulderLevelFarmLabel.Position = UDim2.new(0, 14, 0, 954)
+	UI.BoulderLevelFarmLabel.Position = UDim2.new(0, 14, 0, 558)
 	UI.BoulderLevelFarmLabel.Size = UDim2.new(1, -28, 0, 18)
-	UI.BoulderLevelDropdownButton.Position = UDim2.new(0, 14, 0, 978)
-	UI.BoulderLevelDropdownButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.BoulderLevelFarmButton.Position = UDim2.new(1 / 2, 5, 0, 978)
+	UI.BoulderLevelFarmButton.Position = UDim2.new(0, 14, 0, 582)
 	UI.BoulderLevelFarmButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.BoulderLevelDropdownList.Position = UDim2.new(0, 14, 0, 1018)
+	UI.BoulderLevelDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 582)
+	UI.BoulderLevelDropdownButton.Size = UDim2.new(1 / 2, -19, 0, 34)
+	UI.BoulderLevelDropdownList.Position = UDim2.new(0, 14, 0, 622)
 	UI.BoulderLevelDropdownList.Size = UDim2.new(1, -28, 0, 102)
 
-	PlayerTPLabel.Position = UDim2.new(0, 14, 0, 1138)
+	PlayerTPLabel.Position = UDim2.new(0, 14, 0, 632)
 	PlayerTPLabel.Size = UDim2.new(1, -28, 0, 18)
-	PlayerDropdownButton.Position = UDim2.new(0, 14, 0, 1162)
-	PlayerDropdownButton.Size = UDim2.new(1, -28, 0, 32)
-	PlayerDropdownList.Position = UDim2.new(0, 14, 0, 1200)
+	PlayerTeleportButton.Position = UDim2.new(0, 14, 0, 656)
+	PlayerTeleportButton.Size = UDim2.new(0.3, -18, 0, 34)
+	PlayerDropdownButton.Position = UDim2.new(0.3, 4, 0, 656)
+	PlayerDropdownButton.Size = UDim2.new(0.7, -18, 0, 34)
+	PlayerDropdownList.Position = UDim2.new(0, 14, 0, 696)
 	PlayerDropdownList.Size = UDim2.new(1, -28, 0, 102)
-	PlayerTeleportButton.Position = UDim2.new(0, 14, 0, 1314)
-	PlayerTeleportButton.Size = UDim2.new(1, -28, 0, 34)
 
-	BoulderTPLabel.Position = UDim2.new(0, 14, 0, 1364)
+	BoulderTPLabel.Position = UDim2.new(0, 14, 0, 706)
 	BoulderTPLabel.Size = UDim2.new(1, -28, 0, 18)
-	BoulderDropdownButton.Position = UDim2.new(0, 14, 0, 1388)
-	BoulderDropdownButton.Size = UDim2.new(1, -28, 0, 32)
-	BoulderDropdownList.Position = UDim2.new(0, 14, 0, 1426)
+	BoulderTeleportButton.Position = UDim2.new(0, 14, 0, 730)
+	BoulderTeleportButton.Size = UDim2.new(0.3, -18, 0, 34)
+	BoulderDropdownButton.Position = UDim2.new(0.3, 4, 0, 730)
+	BoulderDropdownButton.Size = UDim2.new(0.7, -18, 0, 34)
+	BoulderDropdownList.Position = UDim2.new(0, 14, 0, 770)
 	BoulderDropdownList.Size = UDim2.new(1, -28, 0, 102)
-	BoulderTeleportButton.Position = UDim2.new(0, 14, 0, 1540)
-	BoulderTeleportButton.Size = UDim2.new(1 / 6, -10, 0, 34)
-	UI.BoulderNoclipButton.Position = UDim2.new(1 / 6, 10, 0, 1540)
-	UI.BoulderNoclipButton.Size = UDim2.new(1 / 6, -10, 0, 34)
-	BoulderEspButton.Position = UDim2.new(2 / 6, 6, 0, 1540)
-	BoulderEspButton.Size = UDim2.new(1 / 6, -10, 0, 34)
-	BoulderPromptButton.Position = UDim2.new(3 / 6, 2, 0, 1540)
-	BoulderPromptButton.Size = UDim2.new(1 / 6, -10, 0, 34)
-	UI.BoulderHopButton.Position = UDim2.new(4 / 6, -2, 0, 1540)
-	UI.BoulderHopButton.Size = UDim2.new(1 / 6, -10, 0, 34)
-	UI.BoulderRejoinButton.Position = UDim2.new(5 / 6, -6, 0, 1540)
-	UI.BoulderRejoinButton.Size = UDim2.new(1 / 6, -10, 0, 34)
-	UI.FloatButton.Position = UDim2.new(0, 14, 0, 1580)
-	UI.FloatButton.Size = UDim2.new(1 / 3, -16, 0, 34)
-	UI.SpeedButton.Position = UDim2.new(1 / 3, 4, 0, 1580)
-	UI.SpeedButton.Size = UDim2.new(1 / 3, -16, 0, 34)
-	UI.InfiniteJumpButton.Position = UDim2.new(2 / 3, -6, 0, 1580)
-	UI.InfiniteJumpButton.Size = UDim2.new(1 / 3, -16, 0, 34)
+	UI.BoulderNoclipButton.Position = UDim2.new(0, 14, 0, 772)
+	UI.BoulderNoclipButton.Size = UDim2.new(0.2, -12, 0, 34)
+	BoulderEspButton.Position = UDim2.new(0.2, 10, 0, 772)
+	BoulderEspButton.Size = UDim2.new(0.2, -12, 0, 34)
+	BoulderPromptButton.Position = UDim2.new(0.4, 6, 0, 772)
+	BoulderPromptButton.Size = UDim2.new(0.2, -12, 0, 34)
+	UI.BoulderHopButton.Position = UDim2.new(0.6, 2, 0, 772)
+	UI.BoulderHopButton.Size = UDim2.new(0.2, -12, 0, 34)
+	UI.BoulderRejoinButton.Position = UDim2.new(0.8, -2, 0, 772)
+	UI.BoulderRejoinButton.Size = UDim2.new(0.2, -12, 0, 34)
+	UI.FloatButton.Position = UDim2.new(0, 14, 0, 812)
+	UI.FloatButton.Size = UDim2.new(1 / 3, -15, 0, 34)
+	UI.SpeedButton.Position = UDim2.new(1 / 3, 7, 0, 812)
+	UI.SpeedButton.Size = UDim2.new(1 / 3, -15, 0, 34)
+	UI.InfiniteJumpButton.Position = UDim2.new(2 / 3, 0, 0, 812)
+	UI.InfiniteJumpButton.Size = UDim2.new(1 / 3, -15, 0, 34)
 
-	GearShopLabel.Position = UDim2.new(0, 14, 0, 1630)
+	GearShopLabel.Position = UDim2.new(0, 14, 0, 862)
 	GearShopLabel.Size = UDim2.new(1, -28, 0, 18)
-	BombDropdownButton.Position = UDim2.new(0, 14, 0, 1654)
-	BombDropdownButton.Size = UDim2.new(1, -28, 0, 32)
-	UI.BuyAllBombButton.Position = UDim2.new(0, 14, 0, 1694)
-	UI.BuyAllBombButton.Size = UDim2.new(1 / 2, -18, 0, 34)
-	BuyBombButton.Position = UDim2.new(1 / 2, 4, 0, 1694)
-	BuyBombButton.Size = UDim2.new(1 / 2, -18, 0, 34)
-	BombDropdownList.Position = UDim2.new(0, 14, 0, 1736)
+	UI.BuyAllBombButton.Position = UDim2.new(0, 14, 0, 886)
+	UI.BuyAllBombButton.Size = UDim2.new(0.24, -7, 0, 34)
+	BuyBombButton.Position = UDim2.new(0.24, 15, 0, 886)
+	BuyBombButton.Size = UDim2.new(0.3, -9, 0, 34)
+	BombDropdownButton.Position = UDim2.new(0.54, 14, 0, 886)
+	BombDropdownButton.Size = UDim2.new(0.46, -28, 0, 34)
+	BombDropdownList.Position = UDim2.new(0, 14, 0, 926)
 	BombDropdownList.Size = UDim2.new(1, -28, 0, 102)
-	UI.RadarShopLabel.Position = UDim2.new(0, 14, 0, 1850)
+	UI.RadarShopLabel.Position = UDim2.new(0, 14, 0, 936)
 	UI.RadarShopLabel.Size = UDim2.new(1, -28, 0, 18)
-	UI.RadarDropdownButton.Position = UDim2.new(0, 14, 0, 1874)
-	UI.RadarDropdownButton.Size = UDim2.new(1, -28, 0, 32)
-	UI.BuyAllRadarButton.Position = UDim2.new(0, 14, 0, 1914)
-	UI.BuyAllRadarButton.Size = UDim2.new(1 / 2, -18, 0, 34)
-	UI.BuyRadarButton.Position = UDim2.new(1 / 2, 4, 0, 1914)
-	UI.BuyRadarButton.Size = UDim2.new(1 / 2, -18, 0, 34)
-	UI.RadarDropdownList.Position = UDim2.new(0, 14, 0, 1956)
+	UI.BuyAllRadarButton.Position = UDim2.new(0, 14, 0, 960)
+	UI.BuyAllRadarButton.Size = UDim2.new(0.24, -7, 0, 34)
+	UI.BuyRadarButton.Position = UDim2.new(0.24, 15, 0, 960)
+	UI.BuyRadarButton.Size = UDim2.new(0.3, -9, 0, 34)
+	UI.RadarDropdownButton.Position = UDim2.new(0.54, 14, 0, 960)
+	UI.RadarDropdownButton.Size = UDim2.new(0.46, -28, 0, 34)
+	UI.RadarDropdownList.Position = UDim2.new(0, 14, 0, 1000)
 	UI.RadarDropdownList.Size = UDim2.new(1, -28, 0, 102)
-	StatusLabel.Position = UDim2.new(0, 14, 0, 2064)
+	StatusLabel.Position = UDim2.new(0, 14, 0, 1010)
 	StatusLabel.Size = UDim2.new(1, -28, 0, 18)
 	State.ApplyContentDensity(UI.IsMobile and 0.78 or 0.86, UI.IsMobile and 0.82 or 0.88, CONTENT_HEIGHT)
 end
@@ -2500,10 +2527,13 @@ local function applyHorizontalControlsLayout(width)
 	local halfWidth = math.floor((columnWidth - 10) / 2)
 	local tpButtonWidth = math.min(104, math.max(82, math.floor(columnWidth * 0.32)))
 	local playerDropdownWidth = columnWidth - tpButtonWidth - 8
-	local boulderActionWidth = math.floor((columnWidth - 50) / 6)
+	local boulderSecondaryWidth = math.floor((columnWidth - 40) / 5)
 	local runeButtonWidth = math.min(104, math.max(86, math.floor(columnWidth * 0.28)))
 	local runeAmountWidth = math.min(72, math.max(58, math.floor(columnWidth * 0.2)))
 	local runeDropdownWidth = columnWidth - runeButtonWidth - runeAmountWidth - 16
+	local shopModeWidth = math.min(90, math.max(72, math.floor(columnWidth * 0.24)))
+	local shopActionWidth = math.min(110, math.max(88, math.floor(columnWidth * 0.3)))
+	local shopDropdownWidth = columnWidth - shopModeWidth - shopActionWidth - 16
 
 	setRect(CrystalFarmLabel, leftX, 8, columnWidth, 16)
 	setRect(FilterTypeButton, leftX, 32, filterNameWidth, 30)
@@ -2526,9 +2556,9 @@ local function applyHorizontalControlsLayout(width)
 	setRect(UI.MoneyDropInput, leftX, 298, halfWidth, 34)
 	setRect(UI.DropMoneyButton, leftX + halfWidth + 10, 298, halfWidth, 34)
 	setRect(UI.RuneDropLabel, leftX, 344, columnWidth, 16)
-	setRect(UI.RuneDropdownButton, leftX, 368, runeDropdownWidth, 34)
-	setRect(UI.RuneAmountInput, leftX + runeDropdownWidth + 8, 368, runeAmountWidth, 34)
-	setRect(UI.DropRuneButton, leftX + runeDropdownWidth + runeAmountWidth + 16, 368, runeButtonWidth, 34)
+	setRect(UI.DropRuneButton, leftX, 368, runeButtonWidth, 34)
+	setRect(UI.RuneAmountInput, leftX + runeButtonWidth + 8, 368, runeAmountWidth, 34)
+	setRect(UI.RuneDropdownButton, leftX + runeButtonWidth + runeAmountWidth + 16, 368, runeDropdownWidth, 34)
 	setRect(UI.RuneDropdownList, leftX, 410, columnWidth, 76)
 	setRect(UI.RunePlaceLabel, leftX, 420, columnWidth, 16)
 	setRect(UI.AutoPlaceRuneButton, leftX, 444, halfWidth, 34)
@@ -2539,38 +2569,38 @@ local function applyHorizontalControlsLayout(width)
 	setRect(UI.DigBoulderDropdownList, leftX, 540, columnWidth, 96)
 
 	setRect(PlayerTPLabel, rightX, 8, columnWidth, 16)
-	setRect(PlayerDropdownButton, rightX, 32, playerDropdownWidth, 34)
-	setRect(PlayerTeleportButton, rightX + playerDropdownWidth + 8, 32, tpButtonWidth, 34)
+	setRect(PlayerTeleportButton, rightX, 32, tpButtonWidth, 34)
+	setRect(PlayerDropdownButton, rightX + tpButtonWidth + 8, 32, playerDropdownWidth, 34)
 	setRect(PlayerDropdownList, rightX, 74, columnWidth, 102)
 
 	setRect(BoulderTPLabel, rightX, 92, columnWidth, 16)
-	setRect(BoulderDropdownButton, rightX, 116, columnWidth, 34)
-	setRect(BoulderTeleportButton, rightX, 158, boulderActionWidth, 32)
-	setRect(UI.BoulderNoclipButton, rightX + boulderActionWidth + 10, 158, boulderActionWidth, 32)
-	setRect(BoulderEspButton, rightX + (boulderActionWidth * 2) + 20, 158, boulderActionWidth, 32)
-	setRect(BoulderPromptButton, rightX + (boulderActionWidth * 3) + 30, 158, boulderActionWidth, 32)
-	setRect(UI.BoulderHopButton, rightX + (boulderActionWidth * 4) + 40, 158, boulderActionWidth, 32)
-	setRect(UI.BoulderRejoinButton, rightX + (boulderActionWidth * 5) + 50, 158, boulderActionWidth, 32)
-	setRect(BoulderDropdownList, rightX, 198, columnWidth, 108)
+	setRect(BoulderTeleportButton, rightX, 116, tpButtonWidth, 34)
+	setRect(BoulderDropdownButton, rightX + tpButtonWidth + 8, 116, playerDropdownWidth, 34)
+	setRect(BoulderDropdownList, rightX, 158, columnWidth, 108)
+	setRect(UI.BoulderNoclipButton, rightX, 158, boulderSecondaryWidth, 32)
+	setRect(BoulderEspButton, rightX + boulderSecondaryWidth + 10, 158, boulderSecondaryWidth, 32)
+	setRect(BoulderPromptButton, rightX + (boulderSecondaryWidth * 2) + 20, 158, boulderSecondaryWidth, 32)
+	setRect(UI.BoulderHopButton, rightX + (boulderSecondaryWidth * 3) + 30, 158, boulderSecondaryWidth, 32)
+	setRect(UI.BoulderRejoinButton, rightX + (boulderSecondaryWidth * 4) + 40, 158, boulderSecondaryWidth, 32)
 	setRect(UI.FloatButton, rightX, 200, math.floor((columnWidth - 20) / 3), 32)
 	setRect(UI.SpeedButton, rightX + math.floor((columnWidth - 20) / 3) + 10, 200, math.floor((columnWidth - 20) / 3), 32)
 	setRect(UI.InfiniteJumpButton, rightX + (math.floor((columnWidth - 20) / 3) * 2) + 20, 200, columnWidth - (math.floor((columnWidth - 20) / 3) * 2) - 20, 32)
 	setRect(UI.BoulderLevelFarmLabel, rightX, 250, columnWidth, 16)
-	setRect(UI.BoulderLevelDropdownButton, rightX, 274, halfWidth, 34)
-	setRect(UI.BoulderLevelFarmButton, rightX + halfWidth + 10, 274, halfWidth, 34)
+	setRect(UI.BoulderLevelFarmButton, rightX, 274, halfWidth, 34)
+	setRect(UI.BoulderLevelDropdownButton, rightX + halfWidth + 10, 274, halfWidth, 34)
 	setRect(UI.BoulderLevelDropdownList, rightX, 316, columnWidth, 96)
 
-	setRect(GearShopLabel, rightX, 424, columnWidth, 16)
-	setRect(BombDropdownButton, rightX, 448, columnWidth, 34)
-	setRect(UI.BuyAllBombButton, rightX, 490, halfWidth, 34)
-	setRect(BuyBombButton, rightX + halfWidth + 10, 490, halfWidth, 34)
-	setRect(BombDropdownList, rightX, 532, columnWidth, 96)
-	setRect(UI.RadarShopLabel, rightX, 642, columnWidth, 16)
-	setRect(UI.RadarDropdownButton, rightX, 666, columnWidth, 34)
-	setRect(UI.BuyAllRadarButton, rightX, 708, halfWidth, 34)
-	setRect(UI.BuyRadarButton, rightX + halfWidth + 10, 708, halfWidth, 34)
-	setRect(UI.RadarDropdownList, rightX, 750, columnWidth, 96)
-	setRect(StatusLabel, rightX, 854, columnWidth, 40)
+	setRect(GearShopLabel, rightX, 330, columnWidth, 16)
+	setRect(UI.BuyAllBombButton, rightX, 354, shopModeWidth, 34)
+	setRect(BuyBombButton, rightX + shopModeWidth + 8, 354, shopActionWidth, 34)
+	setRect(BombDropdownButton, rightX + shopModeWidth + shopActionWidth + 16, 354, shopDropdownWidth, 34)
+	setRect(BombDropdownList, rightX, 396, columnWidth, 96)
+	setRect(UI.RadarShopLabel, rightX, 410, columnWidth, 16)
+	setRect(UI.BuyAllRadarButton, rightX, 434, shopModeWidth, 34)
+	setRect(UI.BuyRadarButton, rightX + shopModeWidth + 8, 434, shopActionWidth, 34)
+	setRect(UI.RadarDropdownButton, rightX + shopModeWidth + shopActionWidth + 16, 434, shopDropdownWidth, 34)
+	setRect(UI.RadarDropdownList, rightX, 476, columnWidth, 96)
+	setRect(StatusLabel, rightX, 486, columnWidth, 40)
 	State.ApplyContentDensity(UI.IsMobile and 0.82 or 0.88, UI.IsMobile and 0.86 or 0.9, HORIZONTAL_CONTENT_HEIGHT)
 end
 
@@ -5864,10 +5894,10 @@ end
 
 function State.UpdateRadarShopBuyAllButton()
 	if State.RadarShopBuyAll and State.BuyingRadar then
-		UI.BuyAllRadarButton.Text = "Buy All Radar ON"
+		UI.BuyAllRadarButton.Text = "ALL ON"
 		UI.BuyAllRadarButton.BackgroundColor3 = Theme.Good
 	else
-		UI.BuyAllRadarButton.Text = "Buy All Radar OFF"
+		UI.BuyAllRadarButton.Text = "ALL OFF"
 		UI.BuyAllRadarButton.BackgroundColor3 = Theme.ButtonDark
 	end
 end
@@ -5890,10 +5920,10 @@ end
 
 function State.UpdateBuyRadarButtonText()
 	if State.BuyingRadar then
-		UI.BuyRadarButton.Text = "Stop Buying Radar"
+		UI.BuyRadarButton.Text = "STOP BUY"
 		UI.BuyRadarButton.BackgroundColor3 = Theme.Bad
 	else
-		UI.BuyRadarButton.Text = "Start Buy Radar"
+		UI.BuyRadarButton.Text = "START BUY"
 		UI.BuyRadarButton.BackgroundColor3 = Theme.Button
 	end
 end
@@ -6375,10 +6405,10 @@ end
 
 function State.UpdateGearShopBuyAllButton()
 	if State.GearShopBuyAll and State.BuyingBomb then
-		UI.BuyAllBombButton.Text = "Buy All ON"
+		UI.BuyAllBombButton.Text = "ALL ON"
 		UI.BuyAllBombButton.BackgroundColor3 = Theme.Good
 	else
-		UI.BuyAllBombButton.Text = "Buy All OFF"
+		UI.BuyAllBombButton.Text = "ALL OFF"
 		UI.BuyAllBombButton.BackgroundColor3 = Theme.ButtonDark
 	end
 end
@@ -6401,10 +6431,10 @@ end
 
 function State.UpdateBuyBombButtonText()
 	if State.BuyingBomb then
-		BuyBombButton.Text = "Stop Buying"
+		BuyBombButton.Text = "STOP BUY"
 		BuyBombButton.BackgroundColor3 = Theme.Bad
 	else
-		BuyBombButton.Text = "Start Buy Selected"
+		BuyBombButton.Text = "START BUY"
 		BuyBombButton.BackgroundColor3 = Theme.Button
 	end
 end
