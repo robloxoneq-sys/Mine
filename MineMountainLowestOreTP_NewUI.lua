@@ -190,6 +190,7 @@ local AllowedUsers = {
 		FERN_18157 = true, --ลูกค้า
 		Tans24fe = true, --ลูกค้า
 		nigon001 = true, --ลูกค้า
+		zonebuxx29 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	mxnkyhpc5015 = true,
@@ -1039,7 +1040,7 @@ local WeightInput = create("TextBox", {
 	BorderSizePixel = 0,
 	ClearTextOnFocus = false,
 	Text = tostring(Config.WeightThreshold),
-	PlaceholderText = "kg",
+	PlaceholderText = "K / M / B / T",
 	TextColor3 = Theme.Text,
 	PlaceholderColor3 = Theme.Muted,
 	TextSize = 12,
@@ -1145,7 +1146,7 @@ local LuckInput = create("TextBox", {
 	BorderSizePixel = 0,
 	ClearTextOnFocus = false,
 	Text = tostring(Config.LuckThreshold),
-	PlaceholderText = "luck",
+	PlaceholderText = "K / M / B / T",
 	TextColor3 = Theme.Text,
 	PlaceholderColor3 = Theme.Muted,
 	TextSize = 12,
@@ -2594,7 +2595,7 @@ local function parseMoneyNumber(value)
 	return number * (multipliers[suffix or ""] or 1)
 end
 
-local function formatMoneyInput(value, parsedValue)
+local function formatCompactInput(value, parsedValue)
 	local text = tostring(value or ""):lower():gsub(",", ""):gsub("%s+", "")
 	local numberText, suffix = text:match("^%$?([%d%.]+)([kmbt])$")
 	local number = numberText and tonumber(numberText) or nil
@@ -2633,7 +2634,7 @@ function State.ParseLuckNumber(value)
 	local rawMode = text:find("x", 1, true) ~= nil or text:find("raw", 1, true) ~= nil
 	text = text:gsub("%%", ""):gsub("%+", ""):gsub("x", ""):gsub("raw", "")
 
-	local parsed = parseNumber(text)
+	local parsed = parseMoneyNumber(text)
 	if not parsed then
 		return nil
 	end
@@ -2710,7 +2711,7 @@ function State.FormatLuckPercent(value)
 end
 
 function State.FormatLuckInput(value)
-	return State.FormatCompactNumber((tonumber(value) or 0) * 100)
+	return formatCompactInput(nil, (tonumber(value) or 0) * 100)
 end
 
 local function normalizeFilterType(filterType)
@@ -2779,7 +2780,7 @@ local function getFilterThresholdForType(filterType)
 		return parseNumber(Config.LuckThreshold) or 0
 	end
 
-	return parseNumber(Config.WeightThreshold) or 0
+	return parseMoneyNumber(Config.WeightThreshold) or 0
 end
 
 local function setFilterThresholdForType(filterType, threshold, inputValue)
@@ -2787,11 +2788,11 @@ local function setFilterThresholdForType(filterType, threshold, inputValue)
 	filterType = normalizeFilterType(filterType)
 
 	if filterType == "Money" then
-		Config.MoneyThreshold = formatMoneyInput(inputValue, threshold)
+		Config.MoneyThreshold = formatCompactInput(inputValue, threshold)
 	elseif filterType == "Luck" then
-		Config.LuckThreshold = threshold
+		Config.LuckThreshold = formatCompactInput(inputValue, threshold * 100)
 	else
-		Config.WeightThreshold = threshold
+		Config.WeightThreshold = formatCompactInput(inputValue, threshold)
 	end
 end
 
@@ -2804,20 +2805,20 @@ local function parseFilterThreshold(filterType, value)
 		return State.ParseLuckNumber(value)
 	end
 
-	return parseNumber(value)
+	return parseMoneyNumber(value)
 end
 
 local function formatFilterThreshold(filterType)
 	filterType = normalizeFilterType(filterType)
 	local threshold = getFilterThresholdForType(filterType)
 	if filterType == "Money" then
-		return "$" .. formatMoneyInput(Config.MoneyThreshold, threshold)
+		return "$" .. formatCompactInput(Config.MoneyThreshold, threshold)
 	end
 	if filterType == "Luck" then
-		return State.FormatLuckPercent(threshold)
+		return "+" .. formatCompactInput(Config.LuckThreshold, threshold * 100) .. "%"
 	end
 
-	return tostring(threshold) .. " kg"
+	return formatCompactInput(Config.WeightThreshold, threshold) .. " kg"
 end
 
 local function getFilterSummary()
@@ -2839,20 +2840,20 @@ end
 local function syncFilterControls()
 	FilterTypeButton.Text = getFilterEnabledForType("Weight") and "Weight ON" or "Weight OFF"
 	WeightModeButton.Text = getFilterModeForType("Weight")
-	WeightInput.PlaceholderText = "kg"
-	WeightInput.Text = tostring(getFilterThresholdForType("Weight"))
+	WeightInput.PlaceholderText = "K / M / B / T"
+	WeightInput.Text = formatCompactInput(Config.WeightThreshold, getFilterThresholdForType("Weight"))
 	FilterTypeButton.BackgroundColor3 = getFilterEnabledForType("Weight") and Theme.Button or Theme.ButtonDark
 
 	MoneyToggleButton.Text = getFilterEnabledForType("Money") and "Money ON" or "Money OFF"
 	MoneyModeButton.Text = getFilterModeForType("Money")
 	MoneyInput.PlaceholderText = "K / M / B / T"
-	MoneyInput.Text = formatMoneyInput(Config.MoneyThreshold, getFilterThresholdForType("Money"))
+	MoneyInput.Text = formatCompactInput(Config.MoneyThreshold, getFilterThresholdForType("Money"))
 	MoneyToggleButton.BackgroundColor3 = getFilterEnabledForType("Money") and Theme.Button or Theme.ButtonDark
 
 	LuckToggleButton.Text = getFilterEnabledForType("Luck") and "Luck ON" or "Luck OFF"
 	LuckModeButton.Text = getFilterModeForType("Luck")
-	LuckInput.PlaceholderText = "luck %"
-	LuckInput.Text = State.FormatLuckInput(getFilterThresholdForType("Luck"))
+	LuckInput.PlaceholderText = "K / M / B / T"
+	LuckInput.Text = formatCompactInput(Config.LuckThreshold, getFilterThresholdForType("Luck") * 100)
 	LuckToggleButton.BackgroundColor3 = getFilterEnabledForType("Luck") and Theme.Button or Theme.ButtonDark
 end
 
@@ -2878,11 +2879,11 @@ local function updateFilterThreshold(filterType, value, persist)
 	end
 
 	if filterType == "Money" then
-		MoneyInput.Text = formatMoneyInput(Config.MoneyThreshold, getFilterThresholdForType(filterType))
+		MoneyInput.Text = formatCompactInput(Config.MoneyThreshold, getFilterThresholdForType(filterType))
 	elseif filterType == "Luck" then
-		LuckInput.Text = State.FormatLuckInput(getFilterThresholdForType(filterType))
+		LuckInput.Text = formatCompactInput(Config.LuckThreshold, getFilterThresholdForType(filterType) * 100)
 	else
-		WeightInput.Text = tostring(getFilterThresholdForType(filterType))
+		WeightInput.Text = formatCompactInput(Config.WeightThreshold, getFilterThresholdForType(filterType))
 	end
 
 	if persist ~= false then
@@ -6936,15 +6937,15 @@ local function getNumericCrystalField(crystal, names, parser)
 end
 
 local function getCrystalWeight(crystal, prompt)
-	local weight = getNumericCrystalField(crystal, { "WeightKg", "Weight", "Kg", "Mass" })
+	local weight = getNumericCrystalField(crystal, { "WeightKg", "Weight", "Kg", "Mass" }, parseMoneyNumber)
 	if weight then
 		return weight
 	end
 
 	local text = prompt and tostring((prompt.ObjectText or "") .. " " .. (prompt.ActionText or "")):lower() or ""
-	local parsed = text:match("([%d%.,]+)%s*kg")
+	local parsed = text:match("([%d%.,]+%s*[kmbt]?)%s*kg")
 	if parsed then
-		return parseNumber(parsed)
+		return parseMoneyNumber(parsed)
 	end
 
 	return nil
