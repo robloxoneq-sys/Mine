@@ -189,6 +189,7 @@ local AllowedUsers = {
 		m4rymeqw = true, --มิวสิค
 		FERN_18157 = true, --ลูกค้า
 		Tans24fe = true, --ลูกค้า
+		nigon001 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	mxnkyhpc5015 = true,
@@ -1091,7 +1092,7 @@ local MoneyInput = create("TextBox", {
 	BorderSizePixel = 0,
 	ClearTextOnFocus = false,
 	Text = tostring(Config.MoneyThreshold),
-	PlaceholderText = "$",
+	PlaceholderText = "K / M / B / T",
 	TextColor3 = Theme.Text,
 	PlaceholderColor3 = Theme.Muted,
 	TextSize = 12,
@@ -2593,6 +2594,32 @@ local function parseMoneyNumber(value)
 	return number * (multipliers[suffix or ""] or 1)
 end
 
+local function formatMoneyInput(value, parsedValue)
+	local text = tostring(value or ""):lower():gsub(",", ""):gsub("%s+", "")
+	local numberText, suffix = text:match("^%$?([%d%.]+)([kmbt])$")
+	local number = numberText and tonumber(numberText) or nil
+	if number and suffix then
+		return string.format("%.15g", number) .. suffix:upper()
+	end
+
+	number = tonumber(parsedValue) or parseMoneyNumber(value) or 0
+	local absolute = math.abs(number)
+	if absolute >= 1e12 then
+		return string.format("%.15g", number / 1e12) .. "T"
+	end
+	if absolute >= 1e9 then
+		return string.format("%.15g", number / 1e9) .. "B"
+	end
+	if absolute >= 1e6 then
+		return string.format("%.15g", number / 1e6) .. "M"
+	end
+	if absolute >= 1e3 then
+		return string.format("%.15g", number / 1e3) .. "K"
+	end
+
+	return string.format("%.15g", number)
+end
+
 function State.ParseLuckNumber(value)
 	if type(value) == "number" then
 		return value > 1 and (value / 100) or value
@@ -2755,12 +2782,12 @@ local function getFilterThresholdForType(filterType)
 	return parseNumber(Config.WeightThreshold) or 0
 end
 
-local function setFilterThresholdForType(filterType, threshold)
+local function setFilterThresholdForType(filterType, threshold, inputValue)
 	threshold = math.max(0, tonumber(threshold) or 0)
 	filterType = normalizeFilterType(filterType)
 
 	if filterType == "Money" then
-		Config.MoneyThreshold = threshold
+		Config.MoneyThreshold = formatMoneyInput(inputValue, threshold)
 	elseif filterType == "Luck" then
 		Config.LuckThreshold = threshold
 	else
@@ -2784,7 +2811,7 @@ local function formatFilterThreshold(filterType)
 	filterType = normalizeFilterType(filterType)
 	local threshold = getFilterThresholdForType(filterType)
 	if filterType == "Money" then
-		return "$" .. tostring(threshold)
+		return "$" .. formatMoneyInput(Config.MoneyThreshold, threshold)
 	end
 	if filterType == "Luck" then
 		return State.FormatLuckPercent(threshold)
@@ -2818,8 +2845,8 @@ local function syncFilterControls()
 
 	MoneyToggleButton.Text = getFilterEnabledForType("Money") and "Money ON" or "Money OFF"
 	MoneyModeButton.Text = getFilterModeForType("Money")
-	MoneyInput.PlaceholderText = "$"
-	MoneyInput.Text = tostring(getFilterThresholdForType("Money"))
+	MoneyInput.PlaceholderText = "K / M / B / T"
+	MoneyInput.Text = formatMoneyInput(Config.MoneyThreshold, getFilterThresholdForType("Money"))
 	MoneyToggleButton.BackgroundColor3 = getFilterEnabledForType("Money") and Theme.Button or Theme.ButtonDark
 
 	LuckToggleButton.Text = getFilterEnabledForType("Luck") and "Luck ON" or "Luck OFF"
@@ -2844,13 +2871,14 @@ local function updateFilterThreshold(filterType, value, persist)
 		currentText = WeightInput.Text
 	end
 
-	local parsed = parseFilterThreshold(filterType, value ~= nil and value or currentText)
+	local inputValue = value ~= nil and value or currentText
+	local parsed = parseFilterThreshold(filterType, inputValue)
 	if parsed then
-		setFilterThresholdForType(filterType, parsed)
+		setFilterThresholdForType(filterType, parsed, inputValue)
 	end
 
 	if filterType == "Money" then
-		MoneyInput.Text = tostring(getFilterThresholdForType(filterType))
+		MoneyInput.Text = formatMoneyInput(Config.MoneyThreshold, getFilterThresholdForType(filterType))
 	elseif filterType == "Luck" then
 		LuckInput.Text = State.FormatLuckInput(getFilterThresholdForType(filterType))
 	else
