@@ -186,6 +186,7 @@ do
 local AllowedUsers = {
 	LockedScriptUsers = {
 		mxnkyhpc5015 = true,
+		m4rymeqw = true, --มิวสิค
 	},
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
@@ -195,8 +196,7 @@ local AllowedUsers = {
 	Achirada3 = true, --ลูกค้า
 	fewkung2580 = true, --ลูกค้า
 	OoShinobiPKoO = true, --ลูกค้า
-	Abox0611 = true, --เด็กจ้าง
-	guplqqeb = true, --เด็กจ้าง
+	nigon001 = true, --ลูกค้า
 	ufmn88zmuh19 = true, --ให้เทส
 	Tans24fe = true --ลูกค้า
 }
