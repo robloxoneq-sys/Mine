@@ -191,8 +191,9 @@ local AllowedUsers = {
 		Tans24fe = true, --ลูกค้า
 		nigon001 = true, --ลูกค้า
 		zonebuxx29 = true, --ลูกค้า
+		ufmn88zmuh19 = true, --เทสระบบ
 	},
-	quut16pkbn34 = true,
+	Gameeieieii = true,
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
 	zonebuxx29 = true, --ลูกค้า
