@@ -192,8 +192,9 @@ local AllowedUsers = {
 		nigon001 = true, --ลูกค้า
 		zonebuxx29 = true, --ลูกค้า
 		fewkung2580 = true, --ลูกค้า
+		ufmn88zmuh19 = true, --ลูกค้า
 	},
-	Honlnwzag2g = true,
+	kaithomas5996_drewth = true,
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
 	zonebuxx29 = true, --ลูกค้า
