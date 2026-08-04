@@ -186,7 +186,6 @@ do
 local AllowedUsers = {
 	LockedScriptUsers = {
 		mxnkyhpc5015 = true,
-		m4rymeqw = true, --มิวสิค
 		FERN_18157 = true, --ลูกค้า
 		Tans24fe = true, --ลูกค้า
 		nigon001 = true, --ลูกค้า
@@ -194,12 +193,13 @@ local AllowedUsers = {
 		fewkung2580 = true, --ลูกค้า
 		ufmn88zmuh19 = true, --ลูกค้า
 	},
+	winniePro55 = true,
 	kaithomas5996_drewth = true,
 	mxnkyhpc5015 = true,
 	FERN_18157 = true, --ลูกค้า
+	Abox0611 = true, --ลูกค้า
 	zonebuxx29 = true, --ลูกค้า
 	Sleep223450 = true, --ลูกค้า
-	m4rymeqw = true, --มิวสิค
 	Achirada3 = true, --ลูกค้า
 	fewkung2580 = true, --ลูกค้า
 	OoShinobiPKoO = true, --ลูกค้า
