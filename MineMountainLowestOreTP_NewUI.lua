@@ -194,11 +194,13 @@ local AllowedUsers = {
 		ufmn88zmuh19 = true, --ลูกค้า
 		OHMTH_14 = true, --ลูกค้า
 		Boss_21101 = true, --ลูกค้า
+		Wissanux_z0904 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	mxnkyhpc5015 = true,
 	kaithomas5996_drewth = true,
 	Boss_21101 = true, --ลูกค้า
+	Wissanux_z0904 = true, --ลูกค้า
 	OHMTH_14 = true, --ลูกค้า
 	FERN_18157 = true, --ลูกค้า
 	Abox0611 = true, --ลูกค้า
