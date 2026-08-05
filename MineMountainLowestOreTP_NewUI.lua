@@ -329,7 +329,7 @@ local Config = {
 	SelectedTeleportPlayerName = "",
 	SelectedBoulderName = "",
 	SelectedDigBoulderName = "",
-	Language = "EN",
+	Language = "TH",
 	Collapsed = false,
 	GearShopBuyAll = false,
 	GearShopAutoBuyEnabled = false,
@@ -453,7 +453,7 @@ do
 			Config.SelectedDigBoulderName = tostring(savedConfig.SelectedDigBoulderName)
 		end
 		if savedConfig.Language ~= nil then
-			Config.Language = tostring(savedConfig.Language):upper() == "TH" and "TH" or "EN"
+			Config.Language = tostring(savedConfig.Language):upper() == "EN" and "EN" or "TH"
 		end
 		if type(savedConfig.BoulderLevelFarmLevels) == "table" or type(savedConfig.SelectedBoulderLevels) == "table" then
 			Config.BoulderLevelFarmLevels = copyStringArray(savedConfig.BoulderLevelFarmLevels or savedConfig.SelectedBoulderLevels)
@@ -581,7 +581,7 @@ local State = {
 	SpeedHackHumanoid = nil,
 	SpeedHackOriginalWalkSpeed = nil,
 	InfiniteJumpEnabled = false,
-	Language = tostring(Config.Language or "EN"):upper() == "TH" and "TH" or "EN",
+	Language = tostring(Config.Language or "TH"):upper() == "EN" and "EN" or "TH",
 	Collapsed = Config.Collapsed == true,
 	SelectedBombItems = {},
 	SelectedRadarItems = {},
@@ -838,6 +838,7 @@ State.Translations = {
 	["MONEY DROP"] = "ดรอปตามมูลค่า",
 	["RUNE DROP"] = "ดรอปรูน",
 	["RUNE PLOT"] = "วางรูนที่พล็อต",
+	["Rune plot"] = "วางรูนที่พล็อต",
 	["AUTO FARM RUNE"] = "ฟาร์มรูนอัตโนมัติ",
 	["PLAYER TP"] = "วาร์ปผู้เล่น",
 	["RUNE TP"] = "วาร์ปรูน",
@@ -874,6 +875,9 @@ State.Translations = {
 	["Rune Level: LOCKED"] = "ระดับรูน: ล็อก",
 	["AUTO PLACE ON"] = "วางอัตโนมัติ เปิด",
 	["AUTO PLACE OFF"] = "วางอัตโนมัติ ปิด",
+	["PLACE RUNES"] = "วางรูน",
+	["STOP PLACE"] = "หยุดวาง",
+	["Place Amount"] = "จำนวนที่จะวาง",
 	["DIG LOOP ON"] = "ขุดซ้ำ เปิด",
 	["DIG LOOP OFF"] = "ขุดซ้ำ ปิด",
 	["RUNE FARM ON"] = "ฟาร์มรูน เปิด",
@@ -953,6 +957,8 @@ State.Translations = {
 	["Character not found for Rune TP"] = "ไม่พบตัวละครสำหรับวาร์ปรูน",
 	["TP target not found"] = "ไม่พบเป้าหมายวาร์ป",
 	["No Rune ProximityPrompt found"] = "ไม่พบ ProximityPrompt ของรูน",
+	["PlotPlaceRequest not found"] = "ไม่พบ PlotPlaceRequest",
+	["Stopping Rune place..."] = "กำลังหยุดวางรูน...",
 	["DigRequest remote not found"] = "ไม่พบ DigRequest remote",
 	["CrystalDropRequest remote not found"] = "ไม่พบ CrystalDropRequest remote",
 	["GoHome remote not found"] = "ไม่พบ GoHome remote",
@@ -983,6 +989,8 @@ State.TranslationPatterns = {
 	{ "^Runes: (%d+) selected$", "รูน: เลือก %1" },
 	{ "^Place Runes: (%d+) selected$", "วางรูน: เลือก %1" },
 	{ "^Place: (.+)$", "วาง: %1" },
+	{ "^Placing Rune (%d+)/(%d+)$", "กำลังวางรูน %1/%2" },
+	{ "^Placed Rune (%d+)/(%d+)$", "วางรูนแล้ว %1/%2" },
 	{ "^Selected TP: (.+)$", "เลือกวาร์ป: %1" },
 	{ "^Selected Rune TP: (.+)$", "เลือกรูนสำหรับวาร์ป: %1" },
 	{ "^Selected Dig Rune: (.+)$", "เลือกรูนสำหรับขุด: %1" },
@@ -1102,9 +1110,16 @@ function State.BindLocalizedPlaceholder(control)
 	end
 end
 
+function State.GetLanguageButtonText()
+	return State.Language == "TH" and "EN" or "TH"
+end
+
 function State.RefreshLanguage()
 	if State.UI and State.UI.LanguageButton then
-		State.UI.LanguageButton.Text = State.Language
+		local buttonText = State.GetLanguageButtonText()
+		State.UI.LanguageButton:SetAttribute("I18nSource", buttonText)
+		State.UI.LanguageButton:SetAttribute("I18nRendered", buttonText)
+		State.UI.LanguageButton.Text = buttonText
 	end
 
 	for control in pairs(State.LocalizedControls) do
@@ -1131,7 +1146,7 @@ function State.RefreshLanguage()
 end
 
 function State.SetLanguage(language, persist)
-	State.Language = tostring(language or "EN"):upper() == "TH" and "TH" or "EN"
+	State.Language = tostring(language or "TH"):upper() == "EN" and "EN" or "TH"
 	Config.Language = State.Language
 	State.RefreshLanguage()
 	if persist ~= false then
@@ -1338,7 +1353,7 @@ UI.LanguageButton = create("TextButton", {
 	Size = UDim2.new(0, 30, 0, 24),
 	BackgroundColor3 = Theme.ButtonDark,
 	BorderSizePixel = 0,
-	Text = State.Language,
+	Text = State.GetLanguageButtonText(),
 	TextColor3 = Theme.Text,
 	TextSize = 11,
 	Font = Enum.Font.GothamBold
@@ -8457,16 +8472,44 @@ end
 
 State.RunePlace.Random = State.RunePlace.Random or Random.new()
 State.RunePlace.EdgePadding = State.RunePlace.EdgePadding or 8
-State.RunePlace.LuckSpacing = State.RunePlace.LuckSpacing or 4.5
-State.RunePlace.LuckClusterRadius = State.RunePlace.LuckClusterRadius or 18
+State.RunePlace.LuckColumnSpacing = State.RunePlace.LuckColumnSpacing or 2.45
+State.RunePlace.LuckRowSpacing = State.RunePlace.LuckRowSpacing or 1.95
 State.RunePlace.ManualDelay = State.RunePlace.ManualDelay or 0.14
+
+function State.RunePlace.GetToolFootprint(tool)
+	if not tool then
+		return nil
+	end
+
+	local ok, extents = pcall(function()
+		if tool:IsA("Tool") then
+			return tool:GetExtentsSize()
+		end
+		return nil
+	end)
+	if ok and typeof(extents) == "Vector3" then
+		return extents
+	end
+
+	local handle = tool:FindFirstChild("Handle")
+	if handle and handle:IsA("BasePart") then
+		return handle.Size
+	end
+
+	local part = tool:FindFirstChildWhichIsA("BasePart", true)
+	if part then
+		return part.Size
+	end
+
+	return nil
+end
 
 function State.RunePlace.IsLuckRune(itemName)
 	local lowerName = tostring(itemName or ""):lower()
 	return lowerName == "luck rune" or lowerName:find("luck", 1, true) ~= nil
 end
 
-function State.RunePlace.GetLuckAnchor(region)
+function State.RunePlace.GetLuckAnchor(region, tool)
 	if not region then
 		return nil
 	end
@@ -8480,24 +8523,32 @@ function State.RunePlace.GetLuckAnchor(region)
 
 	local halfX = math.max((size.X * 0.5) - State.RunePlace.EdgePadding, 1)
 	local halfZ = math.max((size.Z * 0.5) - State.RunePlace.EdgePadding, 1)
-	local reserve = math.min(State.RunePlace.LuckClusterRadius, math.max(0, math.min(halfX, halfZ) - 1))
-	local anchorHalfX = math.max(halfX - reserve, 1)
-	local anchorHalfZ = math.max(halfZ - reserve, 1)
+	local footprint = State.RunePlace.GetToolFootprint(tool)
+	local footprintX = footprint and math.max(tonumber(footprint.X) or 0, 0) or 0
+	local footprintZ = footprint and math.max(tonumber(footprint.Z) or 0, 0) or 0
+	local columnSpacing = math.max(footprintX + 0.85, State.RunePlace.LuckColumnSpacing)
+	local rowSpacing = math.max(footprintZ + 1.15, State.RunePlace.LuckRowSpacing)
+	local usableHalfX = math.max(halfX - (footprintX * 0.5) - 0.15, 1)
+	local usableHalfZ = math.max(halfZ - (footprintZ * 0.5) - 0.15, 1)
 	return {
-		X = State.RunePlace.Random:NextNumber(-anchorHalfX, anchorHalfX),
-		Z = State.RunePlace.Random:NextNumber(-anchorHalfZ, anchorHalfZ)
+		StartX = -usableHalfX,
+		StartZ = -usableHalfZ,
+		Columns = math.max(1, math.floor((usableHalfX * 2) / columnSpacing) + 1),
+		ColumnSpacing = columnSpacing,
+		RowSpacing = rowSpacing,
+		HalfX = usableHalfX,
+		HalfZ = usableHalfZ,
+		FootprintX = footprintX,
+		FootprintZ = footprintZ
 	}
 end
 
 function State.RunePlace.GetClusterOffset(placeIndex)
 	local index = math.max(tonumber(placeIndex) or 1, 1) - 1
-	if index <= 0 then
-		return 0, 0
-	end
-
-	local angle = index * 2.399963229728653
-	local radius = math.sqrt(index) * (State.RunePlace.LuckSpacing or 4.5)
-	return math.cos(angle) * radius, math.sin(angle) * radius
+	local columns = math.max(1, math.floor((State.RunePlace.LuckColumnSpacing > 0 and 74 / State.RunePlace.LuckColumnSpacing or 1)) + 1)
+	local row = math.floor(index / columns)
+	local column = index % columns
+	return column * State.RunePlace.LuckColumnSpacing, row * State.RunePlace.LuckRowSpacing
 end
 
 function State.RunePlace.GetPlot()
@@ -8554,7 +8605,7 @@ function State.RunePlace.GetPlotRegion()
 	return plot, nil
 end
 
-function State.RunePlace.GetPlotPosition(itemName, placeIndex, totalCount, luckAnchor)
+function State.RunePlace.GetPlotPosition(itemName, placeIndex, totalCount, luckAnchor, tool)
 	local _, region = State.RunePlace.GetPlotRegion()
 	if not region then
 		return nil
@@ -8574,15 +8625,23 @@ function State.RunePlace.GetPlotPosition(itemName, placeIndex, totalCount, luckA
 
 	if State.RunePlace.IsLuckRune(itemName) then
 		if not luckAnchor then
-			luckAnchor = State.RunePlace.GetLuckAnchor(region)
+			luckAnchor = State.RunePlace.GetLuckAnchor(region, tool)
 		end
 
 		if luckAnchor then
-			offsetX = tonumber(luckAnchor.X) or 0
-			offsetZ = tonumber(luckAnchor.Z) or 0
-			local clusterX, clusterZ = State.RunePlace.GetClusterOffset(placeIndex)
-			offsetX += clusterX
-			offsetZ += clusterZ
+			local columns = math.max(1, tonumber(luckAnchor.Columns) or 1)
+			local columnSpacing = tonumber(luckAnchor.ColumnSpacing) or State.RunePlace.LuckColumnSpacing
+			local rowSpacing = tonumber(luckAnchor.RowSpacing) or State.RunePlace.LuckRowSpacing
+			local startX = tonumber(luckAnchor.StartX) or -halfX
+			local startZ = tonumber(luckAnchor.StartZ) or -halfZ
+			local index = math.max(tonumber(placeIndex) or 1, 1) - 1
+			local row = math.floor(index / columns)
+			local column = index % columns
+			if row % 2 == 1 then
+				column = columns - 1 - column
+			end
+			offsetX = startX + (column * columnSpacing)
+			offsetZ = startZ + (row * rowSpacing)
 		end
 	end
 
@@ -8591,16 +8650,23 @@ function State.RunePlace.GetPlotPosition(itemName, placeIndex, totalCount, luckA
 		offsetZ = State.RunePlace.Random:NextNumber(-halfZ, halfZ)
 	end
 
-	if offsetX > halfX then
-		offsetX = halfX
-	elseif offsetX < -halfX then
-		offsetX = -halfX
+	local clampHalfX = halfX
+	local clampHalfZ = halfZ
+	if State.RunePlace.IsLuckRune(itemName) and luckAnchor then
+		clampHalfX = math.max(tonumber(luckAnchor.HalfX) or clampHalfX, 1)
+		clampHalfZ = math.max(tonumber(luckAnchor.HalfZ) or clampHalfZ, 1)
 	end
 
-	if offsetZ > halfZ then
-		offsetZ = halfZ
-	elseif offsetZ < -halfZ then
-		offsetZ = -halfZ
+	if offsetX > clampHalfX then
+		offsetX = clampHalfX
+	elseif offsetX < -clampHalfX then
+		offsetX = -clampHalfX
+	end
+
+	if offsetZ > clampHalfZ then
+		offsetZ = clampHalfZ
+	elseif offsetZ < -clampHalfZ then
+		offsetZ = -clampHalfZ
 	end
 
 	local okPosition, position = pcall(function()
@@ -8666,7 +8732,8 @@ function State.RunePlace.PlaceSelectedItems(amount)
 
 	for _, itemName in ipairs(names) do
 		local _, region = State.RunePlace.GetPlotRegion()
-		local luckAnchor = State.RunePlace.IsLuckRune(itemName) and State.RunePlace.GetLuckAnchor(region) or nil
+		local anchorTool = State.RunePlace.FindTool(itemName)
+		local luckAnchor = State.RunePlace.IsLuckRune(itemName) and State.RunePlace.GetLuckAnchor(region, anchorTool) or nil
 		for placeIndex = 1, targetCount do
 			if not State.RunePlaceManualRunning then
 				break
@@ -8677,7 +8744,7 @@ function State.RunePlace.PlaceSelectedItems(amount)
 				break
 			end
 
-			local position = State.RunePlace.GetPlotPosition(itemName, placeIndex, targetCount, luckAnchor)
+			local position = State.RunePlace.GetPlotPosition(itemName, placeIndex, targetCount, luckAnchor, tool)
 			if not position then
 				break
 			end
@@ -8848,7 +8915,11 @@ connect(CollapseButton.Activated, function()
 end)
 
 connect(UI.LanguageButton.Activated, function()
-	State.SetLanguage(State.Language == "EN" and "TH" or "EN")
+	local targetLanguage = tostring(UI.LanguageButton.Text or ""):upper()
+	if targetLanguage ~= "TH" and targetLanguage ~= "EN" then
+		targetLanguage = State.Language == "TH" and "EN" or "TH"
+	end
+	State.SetLanguage(targetLanguage)
 end)
 
 connect(FilterTypeButton.Activated, function()
