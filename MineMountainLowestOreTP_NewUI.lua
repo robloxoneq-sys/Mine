@@ -193,10 +193,12 @@ local AllowedUsers = {
 		fewkung2580 = true, --ลูกค้า
 		ufmn88zmuh19 = true, --ลูกค้า
 		OHMTH_14 = true, --ลูกค้า
+		Boss_21101 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	mxnkyhpc5015 = true,
 	kaithomas5996_drewth = true,
+	Boss_21101 = true, --ลูกค้า
 	OHMTH_14 = true, --ลูกค้า
 	FERN_18157 = true, --ลูกค้า
 	Abox0611 = true, --ลูกค้า
@@ -291,6 +293,7 @@ local Config = {
 	InfiniteJumpStart = false,
 	RuneItemNames = {},
 	RuneDropAmount = 1,
+	RunePlaceAmount = 1,
 	AutoPlaceRuneStart = false,
 	RunePlaceOptions = {
 		{ GuiName = "Rune_ColossusRune", ToolName = "Colossus Rune" },
@@ -428,6 +431,9 @@ do
 		end
 		if tonumber(savedConfig.RuneDropAmount) and tonumber(savedConfig.RuneDropAmount) > 0 then
 			Config.RuneDropAmount = math.floor(tonumber(savedConfig.RuneDropAmount))
+		end
+		if tonumber(savedConfig.RunePlaceAmount) and tonumber(savedConfig.RunePlaceAmount) > 0 then
+			Config.RunePlaceAmount = math.floor(tonumber(savedConfig.RunePlaceAmount))
 		end
 		if savedConfig.MoneyDropThresholdText ~= nil then
 			Config.MoneyDropThresholdText = tostring(savedConfig.MoneyDropThresholdText)
@@ -580,7 +586,9 @@ local State = {
 	SelectedRuneItems = {},
 	SelectedRunePlaceItems = {},
 	RuneDropAmount = tonumber(Config.RuneDropAmount) or 1,
+	RunePlaceAmount = tonumber(Config.RunePlaceAmount) or 1,
 	AutoPlaceRunes = false,
+	RunePlaceManualRunning = false,
 	RunePlacePending = {},
 	LastRunePlaceTick = 0,
 	MoneyDropThresholdText = tostring(Config.MoneyDropThresholdText or ""),
@@ -712,6 +720,7 @@ function State.SaveConfig()
 	Config.RadarItemName = selectedRadarNames[1]
 	Config.RuneItemNames = selectedRuneNames
 	Config.RuneDropAmount = State.RuneDropAmount or 1
+	Config.RunePlaceAmount = State.RunePlaceAmount or 1
 	Config.AutoPlaceRuneStart = State.AutoPlaceRunes == true
 	Config.RunePlaceItemNames = selectedRunePlaceNames
 	Config.MoneyDropThresholdText = State.MoneyDropThresholdText or ""
@@ -755,6 +764,7 @@ function State.SaveConfig()
 		LuckThreshold = Config.LuckThreshold,
 		MoneyDropThresholdText = Config.MoneyDropThresholdText,
 		RuneDropAmount = Config.RuneDropAmount,
+		RunePlaceAmount = Config.RunePlaceAmount,
 		RuneItemNames = selectedRuneNames,
 		SelectedRuneItems = selectedRuneNames,
 		AutoPlaceRuneStart = State.AutoPlaceRunes == true,
@@ -1833,6 +1843,37 @@ UI.AutoPlaceRuneButton = create("TextButton", {
 }, Content)
 styleSurface(UI.AutoPlaceRuneButton, 6, Theme.Accent)
 
+UI.ManualPlaceRuneButton = create("TextButton", {
+	Position = UDim2.new(0, 14, 0, 818),
+	Size = UDim2.new(1 / 2, -19, 0, 34),
+	BackgroundColor3 = Theme.Button,
+	BorderSizePixel = 0,
+	Text = "PLACE RUNES",
+	TextColor3 = Theme.Text,
+	TextSize = 12,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.ManualPlaceRuneButton, 6, Theme.Accent)
+
+UI.RunePlaceAmountInput = create("TextBox", {
+	Position = UDim2.new(0, 14, 0, 818),
+	Size = UDim2.new(0, 58, 0, 34),
+	BackgroundColor3 = Theme.Panel,
+	BorderSizePixel = 0,
+	Text = tostring(Config.RunePlaceAmount or 1),
+	PlaceholderText = "Place Amount",
+	ClearTextOnFocus = false,
+	TextColor3 = Theme.Text,
+	TextSize = 12,
+	Font = Enum.Font.Gotham,
+	TextXAlignment = Enum.TextXAlignment.Left
+}, Content)
+styleSurface(UI.RunePlaceAmountInput, 6, Theme.Accent)
+create("UIPadding", {
+	PaddingLeft = UDim.new(0, 8),
+	PaddingRight = UDim.new(0, 8)
+}, UI.RunePlaceAmountInput)
+
 UI.RunePlaceDropdownButton = create("TextButton", {
 	Position = UDim2.new(1 / 2, 5, 0, 818),
 	Size = UDim2.new(1 / 2, -19, 0, 34),
@@ -2467,7 +2508,8 @@ do
 		UI.DigBoulderDropdownButton,
 		UI.BoulderLevelDropdownButton,
 		BombDropdownButton,
-		UI.RadarDropdownButton
+		UI.RadarDropdownButton,
+		UI.ManualPlaceRuneButton
 	}) do
 		restyleTextControl(control, Theme.ButtonDark)
 		restyleStroke(control, Theme.GlowSoft, 0.35, 1)
@@ -2479,7 +2521,8 @@ do
 		LuckInput,
 		UI.FarmDistanceInput,
 		UI.MoneyDropInput,
-		UI.RuneAmountInput
+		UI.RuneAmountInput,
+		UI.RunePlaceAmountInput
 	}) do
 		restyleTextControl(input, Theme.Field)
 		input.PlaceholderColor3 = Theme.Text
@@ -2504,6 +2547,7 @@ do
 		UI.InfiniteJumpButton,
 		UI.DropRuneButton,
 		UI.AutoPlaceRuneButton,
+		UI.ManualPlaceRuneButton,
 		UI.BuyAllBombButton,
 		BuyBombButton,
 		UI.BuyAllRadarButton,
@@ -2541,6 +2585,7 @@ do
 	for _, button in ipairs({
 		UI.DropRuneButton,
 		UI.AutoPlaceRuneButton,
+		UI.ManualPlaceRuneButton,
 		UI.DigReplayButton,
 		UI.BoulderLevelFarmButton,
 		PlayerTeleportButton,
@@ -2767,9 +2812,13 @@ local function applyVerticalControlsLayout()
 	UI.RunePlaceLabel.Position = UDim2.new(0, 14, 0, 430)
 	UI.RunePlaceLabel.Size = UDim2.new(1, -28, 0, 18)
 	UI.AutoPlaceRuneButton.Position = UDim2.new(0, 14, 0, 454)
-	UI.AutoPlaceRuneButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.RunePlaceDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 454)
-	UI.RunePlaceDropdownButton.Size = UDim2.new(1 / 2, -19, 0, 34)
+	UI.AutoPlaceRuneButton.Size = UDim2.new(0.22, -10, 0, 34)
+	UI.ManualPlaceRuneButton.Position = UDim2.new(0.22, 6, 0, 454)
+	UI.ManualPlaceRuneButton.Size = UDim2.new(0.25, -10, 0, 34)
+	UI.RunePlaceAmountInput.Position = UDim2.new(0.47, 8, 0, 454)
+	UI.RunePlaceAmountInput.Size = UDim2.new(0.16, -8, 0, 34)
+	UI.RunePlaceDropdownButton.Position = UDim2.new(0.63, 10, 0, 454)
+	UI.RunePlaceDropdownButton.Size = UDim2.new(0.37, -24, 0, 34)
 	UI.RunePlaceDropdownList.Position = UDim2.new(0, 14, 0, 494)
 	UI.RunePlaceDropdownList.Size = UDim2.new(1, -28, 0, 102)
 
@@ -2869,6 +2918,9 @@ local function applyHorizontalControlsLayout(width)
 	local runeButtonWidth = math.min(104, math.max(86, math.floor(columnWidth * 0.28)))
 	local runeAmountWidth = math.min(72, math.max(58, math.floor(columnWidth * 0.2)))
 	local runeDropdownWidth = columnWidth - runeButtonWidth - runeAmountWidth - 16
+	local runePlaceActionWidth = math.min(82, math.max(66, math.floor(columnWidth * 0.23)))
+	local runePlaceAmountWidth = math.min(66, math.max(48, math.floor(columnWidth * 0.16)))
+	local runePlaceDropdownWidth = columnWidth - (runePlaceActionWidth * 2) - runePlaceAmountWidth - 24
 	local shopModeWidth = math.min(90, math.max(72, math.floor(columnWidth * 0.24)))
 	local shopActionWidth = math.min(110, math.max(88, math.floor(columnWidth * 0.3)))
 	local shopDropdownWidth = columnWidth - shopModeWidth - shopActionWidth - 16
@@ -2899,8 +2951,10 @@ local function applyHorizontalControlsLayout(width)
 	setRect(UI.RuneDropdownButton, leftX + runeButtonWidth + runeAmountWidth + 16, 368, runeDropdownWidth, 34)
 	setRect(UI.RuneDropdownList, leftX, 410, columnWidth, 76)
 	setRect(UI.RunePlaceLabel, leftX, 420, columnWidth, 16)
-	setRect(UI.AutoPlaceRuneButton, leftX, 444, halfWidth, 34)
-	setRect(UI.RunePlaceDropdownButton, leftX + halfWidth + 10, 444, halfWidth, 34)
+	setRect(UI.AutoPlaceRuneButton, leftX, 444, runePlaceActionWidth, 34)
+	setRect(UI.ManualPlaceRuneButton, leftX + runePlaceActionWidth + 8, 444, runePlaceActionWidth, 34)
+	setRect(UI.RunePlaceAmountInput, leftX + (runePlaceActionWidth * 2) + 16, 444, runePlaceAmountWidth, 34)
+	setRect(UI.RunePlaceDropdownButton, leftX + (runePlaceActionWidth * 2) + runePlaceAmountWidth + 24, 444, runePlaceDropdownWidth, 34)
 	setRect(UI.RunePlaceDropdownList, leftX, 486, columnWidth, 96)
 	setRect(UI.DigReplayButton, leftX, 498, halfWidth, 34)
 	setRect(UI.DigBoulderDropdownButton, leftX + halfWidth + 10, 498, halfWidth, 34)
@@ -5759,6 +5813,15 @@ function State.RunePlace.SetSelected(itemName, selected)
 	State.SaveConfig()
 end
 
+function State.RunePlace.UpdateAmount(value)
+	local amount = math.floor(tonumber(value or UI.RunePlaceAmountInput.Text) or State.RunePlaceAmount or 1)
+	amount = math.max(1, amount)
+	State.RunePlaceAmount = amount
+	UI.RunePlaceAmountInput.Text = tostring(amount)
+	State.SaveConfig()
+	return amount
+end
+
 local function getBombShopConfig()
 	if BombShopConfig then
 		return BombShopConfig
@@ -8390,20 +8453,162 @@ function State.RunePlace.GetEvents()
 	return explorerHud and explorerHud:FindFirstChild("Events")
 end
 
-function State.RunePlace.GetPlotPosition()
-	local things = Workspace:FindFirstChild("Things")
-	local plots = things and things:FindFirstChild("Plots")
-	local slots = plots and plots:FindFirstChild("Slots")
-	local plot = slots and LocalPlayer and slots:FindFirstChild(LocalPlayer.Name)
-	local region = plot and plot:FindFirstChild("Region")
+State.RunePlace.Random = State.RunePlace.Random or Random.new()
+State.RunePlace.EdgePadding = State.RunePlace.EdgePadding or 8
+State.RunePlace.LuckSpacing = State.RunePlace.LuckSpacing or 4.5
+State.RunePlace.LuckClusterRadius = State.RunePlace.LuckClusterRadius or 18
+State.RunePlace.ManualDelay = State.RunePlace.ManualDelay or 0.14
+
+function State.RunePlace.IsLuckRune(itemName)
+	local lowerName = tostring(itemName or ""):lower()
+	return lowerName == "luck rune" or lowerName:find("luck", 1, true) ~= nil
+end
+
+function State.RunePlace.GetLuckAnchor(region)
 	if not region then
 		return nil
 	end
 
-	local ok, position = pcall(function()
-		return region.Position
+	local ok, size = pcall(function()
+		return region.Size
 	end)
-	return ok and position or nil
+	if not ok or typeof(size) ~= "Vector3" then
+		return nil
+	end
+
+	local halfX = math.max((size.X * 0.5) - State.RunePlace.EdgePadding, 1)
+	local halfZ = math.max((size.Z * 0.5) - State.RunePlace.EdgePadding, 1)
+	local reserve = math.min(State.RunePlace.LuckClusterRadius, math.max(0, math.min(halfX, halfZ) - 1))
+	local anchorHalfX = math.max(halfX - reserve, 1)
+	local anchorHalfZ = math.max(halfZ - reserve, 1)
+	return {
+		X = State.RunePlace.Random:NextNumber(-anchorHalfX, anchorHalfX),
+		Z = State.RunePlace.Random:NextNumber(-anchorHalfZ, anchorHalfZ)
+	}
+end
+
+function State.RunePlace.GetClusterOffset(placeIndex)
+	local index = math.max(tonumber(placeIndex) or 1, 1) - 1
+	if index <= 0 then
+		return 0, 0
+	end
+
+	local angle = index * 2.399963229728653
+	local radius = math.sqrt(index) * (State.RunePlace.LuckSpacing or 4.5)
+	return math.cos(angle) * radius, math.sin(angle) * radius
+end
+
+function State.RunePlace.GetPlot()
+	local things = Workspace:FindFirstChild("Things")
+	local plots = things and things:FindFirstChild("Plots")
+	local slots = plots and plots:FindFirstChild("Slots")
+	if not slots then
+		return nil
+	end
+
+	local player = LocalPlayer
+	if player then
+		local exactPlot = slots:FindFirstChild(player.Name)
+		if exactPlot and exactPlot:FindFirstChild("Region") then
+			return exactPlot
+		end
+
+		local lowerName = tostring(player.Name or ""):lower()
+		local lowerDisplayName = tostring(player.DisplayName or ""):lower()
+		for _, child in ipairs(slots:GetChildren()) do
+			if child:FindFirstChild("Region") then
+				local childName = tostring(child.Name or ""):lower()
+				if childName == lowerName
+					or (lowerDisplayName ~= "" and childName == lowerDisplayName)
+					or (lowerName ~= "" and childName:find(lowerName, 1, true)) then
+					return child
+				end
+			end
+		end
+	end
+
+	for _, child in ipairs(slots:GetChildren()) do
+		if child:FindFirstChild("Region") and child:FindFirstChild("PlacedRunes") then
+			return child
+		end
+	end
+
+	for _, child in ipairs(slots:GetChildren()) do
+		if child:FindFirstChild("Region") then
+			return child
+		end
+	end
+
+	return nil
+end
+
+function State.RunePlace.GetPlotRegion()
+	local plot = State.RunePlace.GetPlot()
+	local region = plot and plot:FindFirstChild("Region")
+	if region and region:IsA("BasePart") then
+		return plot, region
+	end
+
+	return plot, nil
+end
+
+function State.RunePlace.GetPlotPosition(itemName, placeIndex, totalCount, luckAnchor)
+	local _, region = State.RunePlace.GetPlotRegion()
+	if not region then
+		return nil
+	end
+
+	local ok, size = pcall(function()
+		return region.Size
+	end)
+	if not ok or typeof(size) ~= "Vector3" then
+		return region.Position
+	end
+
+	local halfX = math.max((size.X * 0.5) - State.RunePlace.EdgePadding, 1)
+	local halfZ = math.max((size.Z * 0.5) - State.RunePlace.EdgePadding, 1)
+	local offsetX
+	local offsetZ
+
+	if State.RunePlace.IsLuckRune(itemName) then
+		if not luckAnchor then
+			luckAnchor = State.RunePlace.GetLuckAnchor(region)
+		end
+
+		if luckAnchor then
+			offsetX = tonumber(luckAnchor.X) or 0
+			offsetZ = tonumber(luckAnchor.Z) or 0
+			local clusterX, clusterZ = State.RunePlace.GetClusterOffset(placeIndex)
+			offsetX += clusterX
+			offsetZ += clusterZ
+		end
+	end
+
+	if offsetX == nil or offsetZ == nil then
+		offsetX = State.RunePlace.Random:NextNumber(-halfX, halfX)
+		offsetZ = State.RunePlace.Random:NextNumber(-halfZ, halfZ)
+	end
+
+	if offsetX > halfX then
+		offsetX = halfX
+	elseif offsetX < -halfX then
+		offsetX = -halfX
+	end
+
+	if offsetZ > halfZ then
+		offsetZ = halfZ
+	elseif offsetZ < -halfZ then
+		offsetZ = -halfZ
+	end
+
+	local okPosition, position = pcall(function()
+		return region.CFrame:PointToWorldSpace(Vector3.new(offsetX, 0, offsetZ))
+	end)
+	if okPosition and typeof(position) == "Vector3" then
+		return position
+	end
+
+	return region.Position
 end
 
 function State.RunePlace.FindTool(itemName)
@@ -8412,6 +8617,90 @@ function State.RunePlace.FindTool(itemName)
 	local tool = character and character:FindFirstChild(itemName)
 		or backpack and backpack:FindFirstChild(itemName)
 	return tool and tool:IsA("Tool") and tool or nil
+end
+
+function State.RunePlace.UpdateManualButton()
+	if not UI.ManualPlaceRuneButton then
+		return
+	end
+
+	if State.RunePlaceManualRunning then
+		UI.ManualPlaceRuneButton.Text = "STOP PLACE"
+		UI.ManualPlaceRuneButton.BackgroundColor3 = Theme.Bad
+	else
+		UI.ManualPlaceRuneButton.Text = "PLACE RUNES"
+		UI.ManualPlaceRuneButton.BackgroundColor3 = Theme.Button
+	end
+end
+
+function State.RunePlace.PlaceSelectedItems(amount)
+	if State.RunePlaceManualRunning then
+		State.RunePlaceManualRunning = false
+		State.RunePlace.UpdateManualButton()
+		setStatus("Stopping Rune place...", Theme.Muted)
+		return 0
+	end
+
+	local names = State.RunePlace.GetSelectedNames()
+	if #names == 0 then
+		State.RunePlace.RefreshDropdownOptions()
+		UI.RunePlaceDropdownList.Visible = true
+		setStatus("Select Rune to place first", Theme.Muted)
+		return 0
+	end
+
+	local remote = State.RunePlace.GetRemote()
+	if not remote then
+		setStatus("PlotPlaceRequest not found", Theme.Bad)
+		return 0
+	end
+
+	local targetCount = State.RunePlace.UpdateAmount(amount)
+	local targetTotal = #names * targetCount
+	local placed = 0
+	State.RunePlaceManualRunning = true
+	State.RunePlace.UpdateManualButton()
+	setStatus(("Placing Rune 0/%d"):format(targetTotal), Theme.Muted)
+
+	for _, itemName in ipairs(names) do
+		local _, region = State.RunePlace.GetPlotRegion()
+		local luckAnchor = State.RunePlace.IsLuckRune(itemName) and State.RunePlace.GetLuckAnchor(region) or nil
+		for placeIndex = 1, targetCount do
+			if not State.RunePlaceManualRunning then
+				break
+			end
+
+			local tool = State.RunePlace.FindTool(itemName)
+			if not tool then
+				break
+			end
+
+			local position = State.RunePlace.GetPlotPosition(itemName, placeIndex, targetCount, luckAnchor)
+			if not position then
+				break
+			end
+
+			local ok = pcall(function()
+				remote:FireServer(itemName, position, 0, tool)
+			end)
+			if ok then
+				placed += 1
+				setStatus(("Placing Rune %d/%d"):format(placed, targetTotal), Theme.Good)
+			end
+
+			task.wait(State.RunePlace.ManualDelay or 0.14)
+		end
+
+		if not State.RunePlaceManualRunning then
+			break
+		end
+	end
+
+	State.RunePlaceManualRunning = false
+	State.RunePlace.UpdateManualButton()
+	State.RunePlace.RefreshDropdownOptions()
+	setStatus(("Placed Rune %d/%d"):format(placed, targetTotal), placed > 0 and Theme.Good or Theme.Bad)
+	return placed
 end
 
 function State.SetAutoPlaceRuneEnabled(enabled, persist)
@@ -8451,8 +8740,7 @@ function State.RunePlace.Heartbeat()
 
 	local events = State.RunePlace.GetEvents()
 	local remote = State.RunePlace.GetRemote()
-	local position = State.RunePlace.GetPlotPosition()
-	if not (events and remote and position) then
+	if not (events and remote) then
 		return
 	end
 
@@ -8465,7 +8753,8 @@ function State.RunePlace.Heartbeat()
 				local lastAttempt = State.RunePlacePending[itemName]
 				if not lastAttempt or now - lastAttempt >= (Config.RunePlaceRetryInterval or 1) then
 					local tool = State.RunePlace.FindTool(itemName)
-					if tool then
+					local position = tool and State.RunePlace.GetPlotPosition()
+					if tool and position then
 						local ok = pcall(function()
 							remote:FireServer(itemName, position, 0, tool)
 						end)
@@ -8608,6 +8897,10 @@ connect(UI.RuneAmountInput.FocusLost, function()
 	RuneDrop.UpdateAmount()
 end)
 
+connect(UI.RunePlaceAmountInput.FocusLost, function()
+	State.RunePlace.UpdateAmount()
+end)
+
 connect(FarmButton.Activated, function()
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
@@ -8683,6 +8976,24 @@ connect(UI.AutoPlaceRuneButton.Activated, function()
 	UI.RadarDropdownList.Visible = false
 	UI.RunePlaceDropdownList.Visible = false
 	State.SetAutoPlaceRuneEnabled(not State.AutoPlaceRunes)
+end)
+
+connect(UI.ManualPlaceRuneButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	UI.RunePlaceDropdownList.Visible = false
+	if State.RunePlaceManualRunning then
+		State.RunePlace.PlaceSelectedItems()
+	else
+		task.spawn(State.RunePlace.PlaceSelectedItems)
+	end
 end)
 
 connect(UI.RunePlaceDropdownButton.Activated, function()
@@ -9036,6 +9347,8 @@ connect(CloseButton.Activated, function()
 	State.SetBuyingRadar(false)
 	State.SetDigReplayEnabled(false)
 	State.SetAutoPlaceRuneEnabled(false)
+	State.RunePlaceManualRunning = false
+	State.RunePlace.UpdateManualButton()
 	setPlayerTeleporting(false)
 	setBoulderTeleporting(false)
 	State.SetNoclipEnabled(false)
@@ -9111,6 +9424,8 @@ function State.Stop()
 	State.SetBuyingRadar(false)
 	State.SetDigReplayEnabled(false)
 	State.SetAutoPlaceRuneEnabled(false)
+	State.RunePlaceManualRunning = false
+	State.RunePlace.UpdateManualButton()
 	setPlayerTeleporting(false)
 	setBoulderTeleporting(false)
 	State.SetNoclipEnabled(false)
@@ -9770,7 +10085,9 @@ State.UpdateBoulderHopButton()
 State.UpdateBoulderRejoinButton()
 RuneDrop.UpdateDropdownText()
 State.RunePlace.UpdateDropdownText()
+State.RunePlace.UpdateAmount()
 State.RunePlace.UpdateToggleButton()
+State.RunePlace.UpdateManualButton()
 State.UpdateGearShopBuyAllButton()
 State.UpdateBuyBombButtonText()
 updateBombDropdownText()
