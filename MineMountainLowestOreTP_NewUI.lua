@@ -5797,12 +5797,14 @@ function RuneDrop.SetSelected(itemName, selected)
 	State.SaveConfig()
 end
 
-function RuneDrop.UpdateAmount(value)
+function RuneDrop.UpdateAmount(value, persist)
 	local amount = math.floor(tonumber(value or UI.RuneAmountInput.Text) or State.RuneDropAmount or 1)
 	amount = math.max(1, amount)
 	State.RuneDropAmount = amount
 	UI.RuneAmountInput.Text = tostring(amount)
-	State.SaveConfig()
+	if persist ~= false then
+		State.SaveConfig()
+	end
 	return amount
 end
 
@@ -5830,12 +5832,14 @@ function State.RunePlace.SetSelected(itemName, selected)
 	State.SaveConfig()
 end
 
-function State.RunePlace.UpdateAmount(value)
+function State.RunePlace.UpdateAmount(value, persist)
 	local amount = math.floor(tonumber(value or UI.RunePlaceAmountInput.Text) or State.RunePlaceAmount or 1)
 	amount = math.max(1, amount)
 	State.RunePlaceAmount = amount
 	UI.RunePlaceAmountInput.Text = tostring(amount)
-	State.SaveConfig()
+	if persist ~= false then
+		State.SaveConfig()
+	end
 	return amount
 end
 
@@ -9415,24 +9419,37 @@ connect(UI.BuyRadarButton.Activated, function()
 end)
 
 connect(CloseButton.Activated, function()
-	setFarming(false)
-	setBuyingBomb(false)
-	State.SetBuyingRadar(false)
-	State.SetDigReplayEnabled(false)
-	State.SetAutoPlaceRuneEnabled(false)
+	State.UpdateFarmDistance(nil, false)
+	updateWeightThreshold(nil, false)
+	updateMoneyThreshold(nil, false)
+	updateLuckThreshold(nil, false)
+	State.MoneyDropThresholdText = tostring(UI.MoneyDropInput and UI.MoneyDropInput.Text or ""):match("^%s*(.-)%s*$") or ""
+	UI.MoneyDropInput.Text = State.MoneyDropThresholdText
+	local runeDropAmount = math.floor(tonumber(UI.RuneAmountInput and UI.RuneAmountInput.Text) or State.RuneDropAmount or 1)
+	State.RuneDropAmount = math.max(1, runeDropAmount)
+	UI.RuneAmountInput.Text = tostring(State.RuneDropAmount)
+	local runePlaceAmount = math.floor(tonumber(UI.RunePlaceAmountInput and UI.RunePlaceAmountInput.Text) or State.RunePlaceAmount or 1)
+	State.RunePlaceAmount = math.max(1, runePlaceAmount)
+	UI.RunePlaceAmountInput.Text = tostring(State.RunePlaceAmount)
+	State.SaveConfig()
+	setFarming(false, false)
+	setBuyingBomb(false, false)
+	State.SetBuyingRadar(false, false)
+	State.SetDigReplayEnabled(false, false)
+	State.SetAutoPlaceRuneEnabled(false, false)
 	State.RunePlaceManualRunning = false
 	State.RunePlace.UpdateManualButton()
-	setPlayerTeleporting(false)
-	setBoulderTeleporting(false)
-	State.SetNoclipEnabled(false)
-	State.SetFloatEnabled(false)
-	State.SetSpeedHackEnabled(false)
-	State.SetInfiniteJumpEnabled(false)
-	setBoulderEspEnabled(false)
-	setBoulderPromptEnabled(false)
-	State.SetBoulderLevelFarmEnabled(false)
-	State.SetBoulderHopEnabled(false)
-	State.SetBoulderRejoinEnabled(false)
+	setPlayerTeleporting(false, false)
+	setBoulderTeleporting(false, false)
+	State.SetNoclipEnabled(false, false)
+	State.SetFloatEnabled(false, false)
+	State.SetSpeedHackEnabled(false, false)
+	State.SetInfiniteJumpEnabled(false, false)
+	setBoulderEspEnabled(false, false)
+	setBoulderPromptEnabled(false, false)
+	State.SetBoulderLevelFarmEnabled(false, false)
+	State.SetBoulderHopEnabled(false, false)
+	State.SetBoulderRejoinEnabled(false, false)
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
 	PlayerDropdownList.Visible = false
@@ -10158,7 +10175,7 @@ State.UpdateBoulderHopButton()
 State.UpdateBoulderRejoinButton()
 RuneDrop.UpdateDropdownText()
 State.RunePlace.UpdateDropdownText()
-State.RunePlace.UpdateAmount()
+State.RunePlace.UpdateAmount(nil, false)
 State.RunePlace.UpdateToggleButton()
 State.RunePlace.UpdateManualButton()
 State.UpdateGearShopBuyAllButton()
