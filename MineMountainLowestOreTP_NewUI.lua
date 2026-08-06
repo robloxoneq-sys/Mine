@@ -199,6 +199,8 @@ local AllowedUsers = {
 		Abox0611 = true, --ลูกค้า
 		Kamjaaeiei = true, --ลูกค้า
 	},
+	Sofiana88588188118 = true,
+	
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
 	mxnkyhpc5015 = true,
@@ -216,7 +218,7 @@ local AllowedUsers = {
 	fewkung2580 = true, --ลูกค้า
 	OoShinobiPKoO = true, --ลูกค้า
 	nigon001 = true, --ลูกค้า
-	ufmn88zmuh19 = true, --ให้เทส
+	ufmn88zmuh19 = true, --ลูกค้า
 	F_fort240 = true, --จ้างฟาม
 	Tans24fe = true --ลูกค้า
 }
