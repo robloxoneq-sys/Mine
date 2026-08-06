@@ -198,13 +198,16 @@ local AllowedUsers = {
 		Ixneedle8918 = true, --ลูกค้า
 		Abox0611 = true, --ลูกค้า
 		Kamjaaeiei = true, --ลูกค้า
+		PeePrommm = true, --ลูกค้า
 	},
 	Sofiana88588188118 = true,
-	
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
 	mxnkyhpc5015 = true,
 	kaithomas5996_drewth = true,
+
+
+	PeePrommm = true, --ลูกค้า
 	Ixneedle8918 = true, --ลูกค้า
 	Kamjaaeiei = true, --ลูกค้า
 	Boss_21101 = true, --ลูกค้า
