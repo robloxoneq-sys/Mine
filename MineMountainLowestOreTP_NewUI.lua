@@ -201,7 +201,8 @@ local AllowedUsers = {
 		Kamjaaeiei = true, --ลูกค้า
 		PeePrommm = true, --ลูกค้า
 		soybad892 = true, --ลูกค้า
-		ballLnwzadog= true, --ลูกค้า
+		ballLnwzadog = true, --ลูกค้า
+		muimuii2 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -211,7 +212,8 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 
-	ballLnwzadog= true, --ลูกค้า
+	muimuii2 = true, --ลูกค้า
+	ballLnwzadog = true, --ลูกค้า
 	soybad892 = true, --ลูกค้า
 	PeePrommm = true, --ลูกค้า
 	Ixneedle8918 = true, --ลูกค้า
