@@ -203,7 +203,7 @@ local AllowedUsers = {
 		Abox0611 = true, --ลูกค้า
 		Kamjaaeiei = true, --ลูกค้า
 		PeePrommm = true, --ลูกค้า
-		soybad892= true, --ลูกค้า
+		muimuii223 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -212,8 +212,8 @@ local AllowedUsers = {
 	winniePro55 = true,
 	Honlnwzag2g = true,
 
-
-	soybad892= true, --ลูกค้า
+	muimuii223 = true, --ลูกค้า
+	soybad892 = true, --ลูกค้า
 	PeePrommm = true, --ลูกค้า
 	Ixneedle8918 = true, --ลูกค้า
 	Kamjaaeiei = true, --ลูกค้า
