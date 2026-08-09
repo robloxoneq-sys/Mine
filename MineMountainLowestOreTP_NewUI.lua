@@ -2,6 +2,7 @@ repeat task.wait() until game:IsLoaded()
 task.wait(0.5)
 loadstring(game:HttpGet("https://raw.githubusercontent.com/robloxoneq-sys/Check/refs/heads/main/jjjj.lua"))()
 task.wait(0.5)
+repeat task.wait() until game:IsLoaded()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -203,7 +204,9 @@ local AllowedUsers = {
 		Abox0611 = true, --ลูกค้า
 		Kamjaaeiei = true, --ลูกค้า
 		PeePrommm = true, --ลูกค้า
-		muimuii223 = true, --ลูกค้า
+		soybad892 = true, --ลูกค้า
+		ballLnwzadog = true, --ลูกค้า
+		muimuii2 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -212,7 +215,9 @@ local AllowedUsers = {
 	winniePro55 = true,
 	Honlnwzag2g = true,
 
-	muimuii223 = true, --ลูกค้า
+
+	muimuii2 = true, --ลูกค้า
+	ballLnwzadog = true, --ลูกค้า
 	soybad892 = true, --ลูกค้า
 	PeePrommm = true, --ลูกค้า
 	Ixneedle8918 = true, --ลูกค้า
