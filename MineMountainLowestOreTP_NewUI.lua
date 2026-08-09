@@ -2,7 +2,6 @@ repeat task.wait() until game:IsLoaded()
 task.wait(0.5)
 loadstring(game:HttpGet("https://raw.githubusercontent.com/robloxoneq-sys/Check/refs/heads/main/jjjj.lua"))()
 task.wait(0.5)
-repeat task.wait() until game:IsLoaded()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -208,6 +207,7 @@ local AllowedUsers = {
 		ballLnwzadog = true, --ลูกค้า
 		muimuii2 = true, --ลูกค้า
 		olo1002za = true, --ลูกค้า
+		polo1002za = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -298,7 +298,7 @@ local Config = {
 	BoulderLevelFarmStart = false,
 	BoulderHopStart = false,
 	BoulderHopInterval = 1,
-	BoulderHopEmptyDelay = 3,
+	BoulderHopEmptyDelay = 5,
 	BoulderHopSort = "Asc",
 	BoulderRejoinStart = false,
 	BoulderLevelFarmLevel = "All",
