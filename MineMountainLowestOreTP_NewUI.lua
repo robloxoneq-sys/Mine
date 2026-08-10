@@ -5852,29 +5852,16 @@ function State.HasTooFarDigNotification()
 	end
 
 	text = tostring(text or "")
-	return text:find("Too far! Get closer to dig", 1, true) ~= nil
-		and text:find("[x100]", 1, true) ~= nil
+	if text:find("Nothing to dig here", 1, true) == nil then
+		return false
+	end
+
+	local count = tonumber(text:match("[xX]%s*(%d+)"))
+	return count ~= nil and count >= 100
 end
 
 function State.TryBoulderEmptyRejoin()
 	if not State.BoulderRejoinEnabled or State.BoulderRejoining then
-		return
-	end
-
-	if State.HasTooFarDigNotification and State.HasTooFarDigNotification() then
-		State.BoulderRejoining = true
-		State.BoulderRejoinNoTargetSince = nil
-		setStatus("Too far dig notification, rejoining", Theme.Good)
-		task.spawn(function()
-			State.BoulderRejoining = false
-			local ok, result = pcall(function()
-				return State.RejoinCurrentServer()
-			end)
-			if not ok or result ~= true then
-				State.BoulderRejoining = false
-				State.BoulderRejoinNoTargetSince = os.clock()
-			end
-		end)
 		return
 	end
 
@@ -5884,17 +5871,17 @@ function State.TryBoulderEmptyRejoin()
 		return
 	end
 
-	local now = os.clock()
 	if not State.BoulderRejoinNoTargetSince then
-		State.BoulderRejoinNoTargetSince = now
-		setStatus("No " .. State.GetBoulderLevelSummary() .. " rune, waiting before rejoin", Theme.Muted)
-		return
-	end
-	if now - State.BoulderRejoinNoTargetSince < (Config.BoulderHopEmptyDelay or 2) then
+		State.BoulderRejoinNoTargetSince = os.clock()
+		setStatus("No " .. State.GetBoulderLevelSummary() .. " rune, waiting for Nothing to dig here x100+", Theme.Muted)
 		return
 	end
 
-	setStatus(State.GetBoulderLevelSummary() .. " runes empty, rejoining", Theme.Good)
+	if not (State.HasTooFarDigNotification and State.HasTooFarDigNotification()) then
+		return
+	end
+
+	setStatus(State.GetBoulderLevelSummary() .. " runes empty + Nothing to dig here x100+, rejoining", Theme.Good)
 	task.spawn(function()
 		local ok, result = pcall(function()
 			return State.RejoinCurrentServer()
