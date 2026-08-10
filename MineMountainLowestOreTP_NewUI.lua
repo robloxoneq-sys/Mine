@@ -5834,8 +5834,47 @@ function State.RejoinCurrentServer()
 	return true
 end
 
+function State.HasTooFarDigNotification()
+	local playerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+	local explorerHud = playerGui and playerGui:FindFirstChild("ExplorerHud")
+	local notifications = explorerHud and explorerHud:FindFirstChild("Notifications")
+	local notif = notifications and notifications:FindFirstChild("Notif")
+	local textLabel = notif and notif:FindFirstChild("Text")
+	if not textLabel then
+		return false
+	end
+
+	local ok, text = pcall(function()
+		return textLabel.Text
+	end)
+	if not ok then
+		return false
+	end
+
+	text = tostring(text or "")
+	return text:find("Too far! Get closer to dig", 1, true) ~= nil
+		and text:find("[x100]", 1, true) ~= nil
+end
+
 function State.TryBoulderEmptyRejoin()
 	if not State.BoulderRejoinEnabled or State.BoulderRejoining then
+		return
+	end
+
+	if State.HasTooFarDigNotification and State.HasTooFarDigNotification() then
+		State.BoulderRejoining = true
+		State.BoulderRejoinNoTargetSince = nil
+		setStatus("Too far dig notification, rejoining", Theme.Good)
+		task.spawn(function()
+			State.BoulderRejoining = false
+			local ok, result = pcall(function()
+				return State.RejoinCurrentServer()
+			end)
+			if not ok or result ~= true then
+				State.BoulderRejoining = false
+				State.BoulderRejoinNoTargetSince = os.clock()
+			end
+		end)
 		return
 	end
 
