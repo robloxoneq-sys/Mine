@@ -248,6 +248,7 @@ local AllowedUsers = {
 		polo1002za = true, --ลูกค้า
 		Ixni4934 = true, --ลูกค้า
 		muimuii223 = true, --ลูกค้า
+		fewkung11234 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -256,6 +257,7 @@ local AllowedUsers = {
 	winniePro55 = true,
 	Honlnwzag2g = true,
 
+	fewkung11234 = true, --ลูกค้า
 	Ixni4934 = true, --ลูกค้า
 	muimuii223 = true, --ลูกค้า
 	polo1002za = true, --ลูกค้า
@@ -328,7 +330,7 @@ local Config = {
 	BoulderNoclipEnabled = true,
 	SpeedHackSpeed = 250,
 	SpeedHackDefaultSpeed = 30,
-	BoulderEspMaxDistance = 50000,
+	BoulderEspMaxDistance = 500000,
 	BoulderPromptInterval = 0,
 	DigLoopInterval = 0,
 	PrintStatus = true,
