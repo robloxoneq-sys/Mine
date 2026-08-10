@@ -249,6 +249,7 @@ local AllowedUsers = {
 		Ixni4934 = true, --ลูกค้า
 		muimuii223 = true, --ลูกค้า
 		fewkung11234 = true, --ลูกค้า
+		fewkung1123455 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -258,6 +259,7 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 	fewkung11234 = true, --ลูกค้า
+	fewkung1123455 = true, --ลูกค้า
 	Ixni4934 = true, --ลูกค้า
 	muimuii223 = true, --ลูกค้า
 	polo1002za = true, --ลูกค้า
