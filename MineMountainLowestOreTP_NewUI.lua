@@ -52,6 +52,32 @@ local function waitForPlayerGui(player)
 	return playerGui
 end
 
+local function getCharacterRootPart(player)
+	local character = player and player.Character
+	return character and character:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function waitForCharacterRootPart(player)
+	local rootPart = getCharacterRootPart(player)
+	if rootPart then
+		print(true)
+		return rootPart
+	end
+
+	print(false)
+
+	while isCurrentLoadGate() and not rootPart do
+		task.wait(LOAD_CHECK_INTERVAL)
+		rootPart = getCharacterRootPart(player)
+	end
+
+	if rootPart and isCurrentLoadGate() then
+		print(true)
+	end
+
+	return rootPart
+end
+
 local function isGuiChainVisible(guiObject)
 	local current = guiObject
 	while current do
@@ -116,12 +142,21 @@ local function isProgressAttributeLoading(player, prefix)
 	return false
 end
 
+local function isMountainLoadingScreenActive(playerGui)
+	local loadingScreen = playerGui and playerGui:FindFirstChild("MountainLoadingScreen")
+	return isLoadingGuiShowing(loadingScreen)
+end
+
 local function isMineMountainLoadDone(player, playerGui)
 	if not playerGui then
 		return false
 	end
 
 	if player:GetAttribute("LoadingScreenActive") == true then
+		return false
+	end
+
+	if isMountainLoadingScreenActive(playerGui) then
 		return false
 	end
 
@@ -178,6 +213,10 @@ LocalPlayer = waitForLocalPlayer()
 if not LocalPlayer or not isCurrentLoadGate() then
 	return
 end
+waitForCharacterRootPart(LocalPlayer)
+if not isCurrentLoadGate() then
+	return
+end
 waitForMineMountainLoadDone(LocalPlayer)
 if not isCurrentLoadGate() then
 	return
@@ -206,7 +245,6 @@ local AllowedUsers = {
 		soybad892 = true, --ลูกค้า
 		ballLnwzadog = true, --ลูกค้า
 		muimuii2 = true, --ลูกค้า
-		olo1002za = true, --ลูกค้า
 		polo1002za = true, --ลูกค้า
 		Ixni4934 = true, --ลูกค้า
 	},
@@ -308,10 +346,11 @@ local Config = {
 	BoulderLevelFarmUpDistance = 0,
 	BoulderLevelFarmForwardDistance = 0,
 	BoulderLevelFarmSpeed = 300,
-	BoulderLevelFarmUnderOffset = 4,
+	BoulderLevelFarmUnderOffset = -10,
 	BoulderLevelFarmReturnDistance = 25,
 	BoulderLevelFarmTweenInterval = 0.1,
 	BoulderLevelFarmNextDelay = 2.2,
+	BoulderLevelFarmBombEnabled = false,
 	PickaxeRecoverInterval = 1,
 	DigReplayStart = false,
 	NoclipStart = false,
@@ -497,6 +536,7 @@ do
 		Config.BoulderEspStart = savedConfig.BoulderEspStart == true or savedConfig.BoulderEspEnabled == true
 		Config.BoulderPromptStart = savedConfig.BoulderPromptStart == true or savedConfig.BoulderPromptEnabled == true
 		Config.BoulderLevelFarmStart = savedConfig.BoulderLevelFarmStart == true or savedConfig.BoulderLevelFarmEnabled == true
+		Config.BoulderLevelFarmBombEnabled = savedConfig.BoulderLevelFarmBombEnabled == true or savedConfig.RuneFarmBombEnabled == true
 		Config.BoulderHopStart = savedConfig.BoulderHopStart == true or savedConfig.BoulderHopEnabled == true
 		Config.BoulderRejoinStart = savedConfig.BoulderRejoinStart == true or savedConfig.BoulderRejoinEnabled == true
 		if savedConfig.BoulderHopSort ~= nil then
@@ -504,6 +544,7 @@ do
 		end
 		if not _G.CrystalToolsLockedScriptUnlocked then
 			Config.BoulderLevelFarmStart = false
+			Config.BoulderLevelFarmBombEnabled = false
 			Config.BoulderHopStart = false
 			Config.BoulderRejoinStart = false
 		end
@@ -578,6 +619,7 @@ local State = {
 	BoulderEspEnabled = false,
 	BoulderPromptEnabled = false,
 	BoulderLevelFarmEnabled = false,
+	BoulderLevelFarmBombEnabled = Config.BoulderLevelFarmBombEnabled == true,
 	BoulderLevelFarmThreadRunning = false,
 	BoulderLevelFarmTarget = nil,
 	BoulderLevelFarmTween = nil,
@@ -763,6 +805,7 @@ function State.SaveConfig()
 	Config.BoulderEspStart = State.BoulderEspEnabled == true
 	Config.BoulderPromptStart = State.BoulderPromptEnabled == true
 	Config.BoulderLevelFarmStart = State.BoulderLevelFarmEnabled == true
+	Config.BoulderLevelFarmBombEnabled = State.BoulderLevelFarmBombEnabled == true
 	Config.BoulderHopStart = State.BoulderHopEnabled == true
 	Config.BoulderRejoinStart = State.BoulderRejoinEnabled == true
 	Config.BoulderLevelFarmLevels = selectedBoulderLevels
@@ -811,6 +854,8 @@ function State.SaveConfig()
 		BoulderPromptEnabled = Config.BoulderPromptStart,
 		BoulderLevelFarmStart = Config.BoulderLevelFarmStart,
 		BoulderLevelFarmEnabled = Config.BoulderLevelFarmStart,
+		BoulderLevelFarmBombEnabled = Config.BoulderLevelFarmBombEnabled,
+		RuneFarmBombEnabled = Config.BoulderLevelFarmBombEnabled,
 		BoulderHopStart = Config.BoulderHopStart,
 		BoulderHopEnabled = Config.BoulderHopStart,
 		BoulderHopSort = Config.BoulderHopSort,
@@ -2067,6 +2112,18 @@ UI.BoulderLevelFarmButton = create("TextButton", {
 }, Content)
 styleSurface(UI.BoulderLevelFarmButton, 6, Theme.Accent)
 
+UI.BoulderLevelFarmBombButton = create("TextButton", {
+	Position = UDim2.new(0.34, 4, 0, 978),
+	Size = UDim2.new(0.24, -12, 0, 34),
+	BackgroundColor3 = Theme.ButtonDark,
+	BorderSizePixel = 0,
+	Text = "BOMB OFF",
+	TextColor3 = Theme.Text,
+	TextSize = 11,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.BoulderLevelFarmBombButton, 6, Theme.Accent)
+
 UI.BoulderLevelDropdownList = create("ScrollingFrame", {
 	Position = UDim2.new(0, 14, 0, 1018),
 	Size = UDim2.new(1, -28, 0, 102),
@@ -2589,6 +2646,7 @@ do
 		UI.DropMoneyButton,
 		UI.DigReplayButton,
 		UI.BoulderLevelFarmButton,
+		UI.BoulderLevelFarmBombButton,
 		PlayerTeleportButton,
 		BoulderTeleportButton,
 		UI.BoulderNoclipButton,
@@ -2642,6 +2700,7 @@ do
 		UI.ManualPlaceRuneButton,
 		UI.DigReplayButton,
 		UI.BoulderLevelFarmButton,
+		UI.BoulderLevelFarmBombButton,
 		PlayerTeleportButton,
 		BoulderTeleportButton,
 		UI.BoulderNoclipButton,
@@ -2886,9 +2945,11 @@ local function applyVerticalControlsLayout()
 	UI.BoulderLevelFarmLabel.Position = UDim2.new(0, 14, 0, 558)
 	UI.BoulderLevelFarmLabel.Size = UDim2.new(1, -28, 0, 18)
 	UI.BoulderLevelFarmButton.Position = UDim2.new(0, 14, 0, 582)
-	UI.BoulderLevelFarmButton.Size = UDim2.new(1 / 2, -19, 0, 34)
-	UI.BoulderLevelDropdownButton.Position = UDim2.new(1 / 2, 5, 0, 582)
-	UI.BoulderLevelDropdownButton.Size = UDim2.new(1 / 2, -19, 0, 34)
+	UI.BoulderLevelFarmButton.Size = UDim2.new(0.34, -18, 0, 34)
+	UI.BoulderLevelFarmBombButton.Position = UDim2.new(0.34, 4, 0, 582)
+	UI.BoulderLevelFarmBombButton.Size = UDim2.new(0.24, -12, 0, 34)
+	UI.BoulderLevelDropdownButton.Position = UDim2.new(0.58, 8, 0, 582)
+	UI.BoulderLevelDropdownButton.Size = UDim2.new(0.42, -22, 0, 34)
 	UI.BoulderLevelDropdownList.Position = UDim2.new(0, 14, 0, 622)
 	UI.BoulderLevelDropdownList.Size = UDim2.new(1, -28, 0, 102)
 
@@ -3032,8 +3093,12 @@ local function applyHorizontalControlsLayout(width)
 	setRect(UI.SpeedButton, rightX + math.floor((columnWidth - 20) / 3) + 10, 200, math.floor((columnWidth - 20) / 3), 32)
 	setRect(UI.InfiniteJumpButton, rightX + (math.floor((columnWidth - 20) / 3) * 2) + 20, 200, columnWidth - (math.floor((columnWidth - 20) / 3) * 2) - 20, 32)
 	setRect(UI.BoulderLevelFarmLabel, rightX, 250, columnWidth, 16)
-	setRect(UI.BoulderLevelFarmButton, rightX, 274, halfWidth, 34)
-	setRect(UI.BoulderLevelDropdownButton, rightX + halfWidth + 10, 274, halfWidth, 34)
+	local boulderFarmModeWidth = math.floor((columnWidth - 20) * 0.34)
+	local boulderFarmBombWidth = math.floor((columnWidth - 20) * 0.24)
+	local boulderFarmLevelWidth = columnWidth - boulderFarmModeWidth - boulderFarmBombWidth - 20
+	setRect(UI.BoulderLevelFarmButton, rightX, 274, boulderFarmModeWidth, 34)
+	setRect(UI.BoulderLevelFarmBombButton, rightX + boulderFarmModeWidth + 10, 274, boulderFarmBombWidth, 34)
+	setRect(UI.BoulderLevelDropdownButton, rightX + boulderFarmModeWidth + boulderFarmBombWidth + 20, 274, boulderFarmLevelWidth, 34)
 	setRect(UI.BoulderLevelDropdownList, rightX, 316, columnWidth, 96)
 
 	setRect(GearShopLabel, rightX, 330, columnWidth, 16)
@@ -4254,6 +4319,135 @@ function State.GetDigToolName()
 	return tool and tool.Name or nil
 end
 
+function State.FindToolByNames(names)
+	local wantedNames = {}
+	for _, name in ipairs(names or {}) do
+		local canonicalName = canonicalDigToolName(name)
+		if canonicalName ~= "" then
+			wantedNames[canonicalName] = true
+		end
+	end
+
+	return State.FindToolInCharacterAndBackpack(function(tool)
+		if not (tool and tool:IsA("Tool")) then
+			return false
+		end
+
+		for _, variant in ipairs(State.GetToolNameVariants(tool)) do
+			if wantedNames[canonicalDigToolName(variant)] then
+				return true
+			end
+		end
+
+		return false
+	end)
+end
+
+function State.EquipSpecificTool(tool)
+	local character = LocalPlayer and LocalPlayer.Character
+	if not (tool and character) then
+		return false
+	end
+
+	if tool.Parent == character then
+		return true
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return false
+	end
+
+	local backpack = State.GetPlayerBackpack and State.GetPlayerBackpack()
+	if backpack and tool.Parent ~= backpack and tool.Parent ~= character then
+		pcall(function()
+			tool.Parent = backpack
+		end)
+		task.wait()
+	end
+
+	pcall(function()
+		humanoid:UnequipTools()
+	end)
+	task.wait(0.03)
+
+	pcall(function()
+		humanoid:EquipTool(tool)
+	end)
+
+	if State.WaitForToolParent(tool, character, 0.18) then
+		return true
+	end
+
+	if backpack and tool.Parent == backpack then
+		local slot = State.GetHotbarSlotForTool(tool, backpack)
+		if slot and State.PressHotbarSlot(slot) and State.WaitForToolParent(tool, character, 0.18) then
+			return true
+		end
+	end
+
+	if tool.Parent ~= character then
+		pcall(function()
+			tool.Parent = character
+		end)
+	end
+
+	return State.WaitForToolParent(tool, character, 0.18)
+end
+
+function State.GetBombActivateRemote()
+	if State.BombActivateRemote and State.BombActivateRemote.Parent then
+		return State.BombActivateRemote
+	end
+
+	local remotes = Remotes or ReplicatedStorage:FindFirstChild("Remotes")
+	State.BombActivateRemote = remotes and remotes:FindFirstChild("BombActivate")
+	return State.BombActivateRemote
+end
+
+function State.UseBoulderLevelFarmBomb(target)
+	if not State.BoulderLevelFarmBombEnabled then
+		return false
+	end
+
+	local bombTool = State.FindToolByNames({ "ClassicBomb", "Classic Bomb" })
+	local remote = State.GetBombActivateRemote()
+	if not remote then
+		setStatus("BombActivate remote not found", Theme.Bad)
+		return false
+	end
+
+	if bombTool and not State.EquipSpecificTool(bombTool) then
+		setStatus("Could not equip ClassicBomb", Theme.Bad)
+		State.LastDigToolEquipAttemptTick = -1000000000
+		State.EnsureDigToolEquipped()
+		return false
+	end
+
+	if not bombTool then
+		setStatus("ClassicBomb not found", Theme.Bad)
+		State.LastDigToolEquipAttemptTick = -1000000000
+		State.EnsureDigToolEquipped()
+		return false
+	end
+
+	task.wait(0.05)
+	local ok = pcall(function()
+		remote:FireServer("ClassicBomb")
+	end)
+	task.wait(0.08)
+	State.LastDigToolEquipAttemptTick = -1000000000
+	State.EnsureDigToolEquipped()
+
+	if ok then
+		setStatus("Rune farm bomb -> " .. State.GetDigBoulderDisplayName(target), Theme.Good)
+	else
+		setStatus("ClassicBomb activate failed", Theme.Bad)
+	end
+
+	return ok
+end
+
 function State.EnsureDigToolEquipped()
 	local tool = State.GetDigTool()
 	local character = LocalPlayer and LocalPlayer.Character
@@ -5006,6 +5200,44 @@ function State.UpdateBoulderLevelFarmButton()
 	end
 end
 
+function State.UpdateBoulderLevelFarmBombButton()
+	if not UI.BoulderLevelFarmBombButton then
+		return
+	end
+
+	if not State.IsLockedScriptUnlocked() then
+		UI.BoulderLevelFarmBombButton.Text = "BOMB LOCK"
+		UI.BoulderLevelFarmBombButton.BackgroundColor3 = Theme.ButtonDark
+		return
+	end
+
+	if State.BoulderLevelFarmBombEnabled then
+		UI.BoulderLevelFarmBombButton.Text = "BOMB ON"
+		UI.BoulderLevelFarmBombButton.BackgroundColor3 = Theme.Good
+	else
+		UI.BoulderLevelFarmBombButton.Text = "BOMB OFF"
+		UI.BoulderLevelFarmBombButton.BackgroundColor3 = Theme.ButtonDark
+	end
+end
+
+function State.SetBoulderLevelFarmBombEnabled(enabled, persist)
+	if enabled == true and not State.IsLockedScriptUnlocked() then
+		State.BoulderLevelFarmBombEnabled = false
+		Config.BoulderLevelFarmBombEnabled = false
+		State.UpdateBoulderLevelFarmBombButton()
+		return State.ShowLockedScriptMessage()
+	end
+
+	State.BoulderLevelFarmBombEnabled = enabled == true
+	Config.BoulderLevelFarmBombEnabled = State.BoulderLevelFarmBombEnabled
+	State.UpdateBoulderLevelFarmBombButton()
+	setStatus(State.BoulderLevelFarmBombEnabled and "Rune farm bomb ON" or "Rune farm bomb OFF", State.BoulderLevelFarmBombEnabled and Theme.Good or Theme.Muted)
+	if persist ~= false then
+		State.SaveConfig()
+	end
+	return State.BoulderLevelFarmBombEnabled
+end
+
 function State.SetBoulderLevelFarmLevel(level, persist, selected)
 	if not State.IsLockedScriptUnlocked() then
 		return State.ShowLockedScriptMessage()
@@ -5259,7 +5491,14 @@ function State.RunBoulderLevelFarmLoop()
 						State.EnsureDigToolEquipped()
 					end
 					setStatus("Tween to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
-					State.TweenBoulderLevelFarmToTarget(target)
+					local reachedTarget = State.TweenBoulderLevelFarmToTarget(target)
+					if reachedTarget
+						and State.BoulderLevelFarmBombEnabled
+						and State.BoulderLevelFarmEnabled
+						and State.GetSelectedDigBoulderTarget() == target
+						and target.Parent then
+						State.UseBoulderLevelFarmBomb(target)
+					end
 					while State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() == target and target.Parent and State.IsBoulderLevelFarmMatch(target) do
 						if State.EnsureDigToolEquipped then
 							State.EnsureDigToolEquipped()
@@ -9208,6 +9447,19 @@ connect(UI.BoulderLevelFarmButton.Activated, function()
 	State.SetBoulderLevelFarmEnabled(not State.BoulderLevelFarmEnabled)
 end)
 
+connect(UI.BoulderLevelFarmBombButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.RunePlaceDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	State.SetBoulderLevelFarmBombEnabled(not State.BoulderLevelFarmBombEnabled)
+end)
+
 connect(PlayerDropdownButton.Activated, function()
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
@@ -9870,6 +10122,10 @@ function State.SetBoulderLevelFarm(levelOrEnabled, enabled)
 	return State.SetBoulderLevelFarmEnabled(levelOrEnabled)
 end
 
+function State.SetBoulderLevelFarmBomb(enabled)
+	return State.SetBoulderLevelFarmBombEnabled(enabled)
+end
+
 function State.StartBoulderLevelFarm(level)
 	if level ~= nil then
 		State.SetBoulderLevelFarmLevel(level)
@@ -10204,6 +10460,7 @@ updateBoulderEspButton()
 updateBoulderPromptButton()
 State.UpdateBoulderLevelDropdownText()
 State.UpdateBoulderLevelFarmButton()
+State.UpdateBoulderLevelFarmBombButton()
 State.UpdateBoulderHopButton()
 State.UpdateBoulderRejoinButton()
 RuneDrop.UpdateDropdownText()
