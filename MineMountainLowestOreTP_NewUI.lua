@@ -5867,23 +5867,15 @@ function State.TryBoulderEmptyRejoin()
 		return
 	end
 
+	local hasDigError = State.HasTooFarDigNotification and State.HasTooFarDigNotification()
 	local matchingTargets = State.CountBoulderLevelFarmMatches()
-	if matchingTargets > 0 then
+	if matchingTargets > 0 and not hasDigError then
 		State.BoulderRejoinNoTargetSince = nil
 		return
 	end
 
-	if not State.BoulderRejoinNoTargetSince then
-		State.BoulderRejoinNoTargetSince = os.clock()
-		setStatus("No " .. State.GetBoulderLevelSummary() .. " rune, waiting for Nothing to dig here x100+", Theme.Muted)
-		return
-	end
-
-	if not (State.HasTooFarDigNotification and State.HasTooFarDigNotification()) then
-		return
-	end
-
-	setStatus(State.GetBoulderLevelSummary() .. " runes empty + Nothing to dig here x100+, rejoining", Theme.Good)
+	State.BoulderRejoinNoTargetSince = nil
+	setStatus(hasDigError and "Nothing to dig here x100+, rejoining" or (State.GetBoulderLevelSummary() .. " runes empty, rejoining"), Theme.Good)
 	task.spawn(function()
 		local ok, result = pcall(function()
 			return State.RejoinCurrentServer()
