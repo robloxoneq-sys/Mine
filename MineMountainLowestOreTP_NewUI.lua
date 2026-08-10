@@ -343,6 +343,7 @@ local Config = {
 	BoulderHopEmptyDelay = 5,
 	BoulderHopSort = "Asc",
 	BoulderRejoinStart = false,
+	BoulderRejoinDelay = 5,
 	BoulderLevelFarmLevel = "All",
 	BoulderLevelFarmLevels = { "All" },
 	BoulderLevelFarmUpDistance = 0,
@@ -541,6 +542,9 @@ do
 		Config.BoulderLevelFarmBombEnabled = savedConfig.BoulderLevelFarmBombEnabled == true or savedConfig.RuneFarmBombEnabled == true
 		Config.BoulderHopStart = savedConfig.BoulderHopStart == true or savedConfig.BoulderHopEnabled == true
 		Config.BoulderRejoinStart = savedConfig.BoulderRejoinStart == true or savedConfig.BoulderRejoinEnabled == true
+		if tonumber(savedConfig.BoulderRejoinDelay) and tonumber(savedConfig.BoulderRejoinDelay) >= 0 then
+			Config.BoulderRejoinDelay = tonumber(savedConfig.BoulderRejoinDelay)
+		end
 		if savedConfig.BoulderHopSort ~= nil then
 			Config.BoulderHopSort = tostring(savedConfig.BoulderHopSort)
 		end
@@ -863,6 +867,7 @@ function State.SaveConfig()
 		BoulderHopSort = Config.BoulderHopSort,
 		BoulderRejoinStart = Config.BoulderRejoinStart,
 		BoulderRejoinEnabled = Config.BoulderRejoinStart,
+		BoulderRejoinDelay = Config.BoulderRejoinDelay,
 		BoulderLevelFarmLevel = Config.BoulderLevelFarmLevel,
 		BoulderLevelFarmLevels = selectedBoulderLevels,
 		SelectedBoulderLevels = selectedBoulderLevels,
@@ -5859,7 +5864,7 @@ function State.HasTooFarDigNotification()
 	end
 
 	local count = tonumber(text:match("[xX]%s*(%d+)"))
-	return count ~= nil and count >= 100
+	return count ~= nil and count >= 50
 end
 
 function State.TryBoulderEmptyRejoin()
@@ -5874,8 +5879,20 @@ function State.TryBoulderEmptyRejoin()
 		return
 	end
 
+	local reason = hasDigError and "Nothing to dig here x100+" or (State.GetBoulderLevelSummary() .. " runes empty")
+	local rejoinDelay = tonumber(Config.BoulderRejoinDelay) or 5
+	local now = os.clock()
+	if not State.BoulderRejoinNoTargetSince then
+		State.BoulderRejoinNoTargetSince = now
+		setStatus(reason .. ", waiting " .. tostring(rejoinDelay) .. "s before rejoin", Theme.Muted)
+		return
+	end
+	if now - State.BoulderRejoinNoTargetSince < rejoinDelay then
+		return
+	end
+
 	State.BoulderRejoinNoTargetSince = nil
-	setStatus(hasDigError and "Nothing to dig here x100+, rejoining" or (State.GetBoulderLevelSummary() .. " runes empty, rejoining"), Theme.Good)
+	setStatus(reason .. ", rejoining", Theme.Good)
 	task.spawn(function()
 		local ok, result = pcall(function()
 			return State.RejoinCurrentServer()
