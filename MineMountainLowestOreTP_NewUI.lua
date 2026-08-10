@@ -5497,6 +5497,7 @@ function State.RunBoulderLevelFarmLoop()
 						and State.BoulderLevelFarmEnabled
 						and State.GetSelectedDigBoulderTarget() == target
 						and target.Parent then
+						task.wait(1)
 						State.UseBoulderLevelFarmBomb(target)
 					end
 					while State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() == target and target.Parent and State.IsBoulderLevelFarmMatch(target) do
