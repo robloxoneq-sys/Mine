@@ -254,6 +254,7 @@ local AllowedUsers = {
 		Maxascxxx = true, --ลูกค้า
 		Laserback5 = true, --ลูกค้า
 		Mixmixz9 = true, --ลูกค้า
+		jojo197221 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -262,6 +263,7 @@ local AllowedUsers = {
 	winniePro55 = true,
 	Honlnwzag2g = true,
 
+	jojo197221 = true, --ลูกค้า
 	Mixmixz9 = true, --ลูกค้า
 	Laserback5 = true, --ลูกค้า
 	Maxascxxx = true, --ลูกค้า
