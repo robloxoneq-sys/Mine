@@ -246,6 +246,32 @@ local function waitForMineMountainLoadDone(player)
 	end
 end
 
+local function getMountainBouldersFolder()
+	local mountainDecorations = Workspace:FindFirstChild("MountainDecorations")
+	return mountainDecorations and mountainDecorations:FindFirstChild("Boulders") or nil
+end
+
+local function waitForMountainBouldersFolder()
+	local bouldersFolder = getMountainBouldersFolder()
+	local announced = false
+
+	while isCurrentLoadGate() and not bouldersFolder do
+		if not announced then
+			announced = true
+			print("[CrystalTools] waiting for workspace.MountainDecorations.Boulders...")
+		end
+
+		task.wait(LOAD_CHECK_INTERVAL)
+		bouldersFolder = getMountainBouldersFolder()
+	end
+
+	if announced and bouldersFolder and isCurrentLoadGate() then
+		print("[CrystalTools] workspace.MountainDecorations.Boulders loaded.")
+	end
+
+	return bouldersFolder
+end
+
 waitForGameLoaded()
 LocalPlayer = waitForLocalPlayer()
 if not LocalPlayer or not isCurrentLoadGate() then
@@ -256,6 +282,10 @@ if not isCurrentLoadGate() then
 	return
 end
 waitForMineMountainLoadDone(LocalPlayer)
+if not isCurrentLoadGate() then
+	return
+end
+waitForMountainBouldersFolder()
 if not isCurrentLoadGate() then
 	return
 end
@@ -401,9 +431,9 @@ local Config = {
 	BoulderRejoinDelay = 5,
 	BoulderLevelFarmLevel = "All",
 	BoulderLevelFarmLevels = { "All" },
-	BoulderLevelFarmUpDistance = 100,
+	BoulderLevelFarmUpDistance = 150,
 	BoulderLevelFarmForwardDistance = 1500,
-	BoulderLevelFarmSpeed = 300,
+	BoulderLevelFarmSpeed = 600,
 	BoulderLevelFarmUnderOffset = -10,
 	BoulderLevelFarmReturnDistance = 25,
 	BoulderLevelFarmTweenInterval = 0.1,
@@ -684,12 +714,14 @@ local State = {
 	BoulderLevelFarmThreadRunning = false,
 	BoulderLevelFarmTarget = nil,
 	BoulderLevelFarmTween = nil,
+	BoulderLevelFarmRouteTweening = false,
 	BoulderHopEnabled = false,
 	BoulderHopTeleporting = false,
 	BoulderHopNoTargetSince = nil,
 	BoulderRejoinEnabled = false,
 	BoulderRejoining = false,
 	BoulderRejoinNoTargetSince = nil,
+	BoulderRejoinDigErrorSince = nil,
 	PickaxeShopNameSet = nil,
 	PickaxeShopNameSetTick = 0,
 	DigToolCache = nil,
@@ -5333,6 +5365,7 @@ function State.SetBoulderLevelFarmLevel(level, persist, selected)
 	State.BoulderHopNoTargetSince = nil
 	State.LastBoulderHopTick = 0
 	State.BoulderRejoinNoTargetSince = nil
+	State.BoulderRejoinDigErrorSince = nil
 	State.LastBoulderRejoinTick = 0
 	State.UpdateBoulderLevelDropdownText()
 	if persist ~= false then
@@ -5473,7 +5506,24 @@ function State.GetNextBoulderLevelFarmTarget()
 	return nearestTarget or fallbackTarget
 end
 
-function State.TweenBoulderLevelFarmToPosition(position)
+function State.GetBoulderLevelFarmTweenInterruptTarget(currentTarget)
+	if not State.BoulderLevelFarmEnabled then
+		return nil
+	end
+
+	local target = State.GetNextBoulderLevelFarmTarget()
+	if not target then
+		return nil
+	end
+
+	if currentTarget and target == currentTarget and currentTarget.Parent and State.IsBoulderLevelFarmMatch(currentTarget) then
+		return nil
+	end
+
+	return target
+end
+
+function State.TweenBoulderLevelFarmToPosition(position, currentTarget)
 	if not State.BoulderLevelFarmEnabled then
 		return false
 	end
@@ -5494,13 +5544,37 @@ function State.TweenBoulderLevelFarmToPosition(position)
 		{ CFrame = CFrame.new(position, position + root.CFrame.LookVector) }
 	)
 
+	local playbackState = nil
+	local completed = false
+	local interruptTarget = nil
+	local completedConnection = tween.Completed:Connect(function(state)
+		playbackState = state
+		completed = true
+	end)
+
 	State.BoulderLevelFarmTween = tween
 	tween:Play()
-	local playbackState = tween.Completed:Wait()
+
+	while State.BoulderLevelFarmEnabled and State.BoulderLevelFarmTween == tween and not completed do
+		interruptTarget = State.GetBoulderLevelFarmTweenInterruptTarget(currentTarget)
+		if interruptTarget then
+			pcall(function()
+				tween:Cancel()
+			end)
+			break
+		end
+
+		task.wait(Config.BoulderLevelFarmTweenInterval or 0.1)
+	end
+
+	if completedConnection then
+		completedConnection:Disconnect()
+	end
+
 	if State.BoulderLevelFarmTween == tween then
 		State.BoulderLevelFarmTween = nil
 	end
-	return State.BoulderLevelFarmEnabled and playbackState == Enum.PlaybackState.Completed
+	return State.BoulderLevelFarmEnabled and playbackState == Enum.PlaybackState.Completed, interruptTarget
 end
 
 function State.PrimeBoulderLevelFarmRoute()
@@ -5512,19 +5586,36 @@ function State.PrimeBoulderLevelFarmRoute()
 	if not root then
 		return false
 	end
-	if not State.TweenBoulderLevelFarmToPosition(root.Position + Vector3.new(0, Config.BoulderLevelFarmUpDistance or 300, 0)) then
+	State.BoulderLevelFarmRouteTweening = true
+	local reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(root.Position + Vector3.new(0, Config.BoulderLevelFarmUpDistance or 300, 0))
+	if interruptTarget then
+		State.BoulderLevelFarmPrimed = true
+		State.BoulderLevelFarmRouteTweening = false
+		return true
+	end
+	if not reachedPosition then
+		State.BoulderLevelFarmRouteTweening = false
 		return false
 	end
 
 	_, root = getCharacterParts(LocalPlayer)
 	if not root then
+		State.BoulderLevelFarmRouteTweening = false
 		return false
 	end
-	if not State.TweenBoulderLevelFarmToPosition(root.Position + (root.CFrame.LookVector * (Config.BoulderLevelFarmForwardDistance or 1800))) then
+	reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(root.Position + (root.CFrame.LookVector * (Config.BoulderLevelFarmForwardDistance or 1800)))
+	if interruptTarget then
+		State.BoulderLevelFarmPrimed = true
+		State.BoulderLevelFarmRouteTweening = false
+		return true
+	end
+	if not reachedPosition then
+		State.BoulderLevelFarmRouteTweening = false
 		return false
 	end
 
 	State.BoulderLevelFarmPrimed = true
+	State.BoulderLevelFarmRouteTweening = false
 	return true
 end
 
@@ -5533,7 +5624,7 @@ function State.TweenBoulderLevelFarmToTarget(target)
 		return false
 	end
 
-	return State.TweenBoulderLevelFarmToPosition(State.GetBoulderLevelFarmPosition(target))
+	return State.TweenBoulderLevelFarmToPosition(State.GetBoulderLevelFarmPosition(target), target)
 end
 
 function State.RunBoulderLevelFarmLoop()
@@ -5553,7 +5644,14 @@ function State.RunBoulderLevelFarmLoop()
 						State.EnsureDigToolEquipped()
 					end
 					setStatus("Tween to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
-					local reachedTarget = State.TweenBoulderLevelFarmToTarget(target)
+					local reachedTarget, interruptTarget = State.TweenBoulderLevelFarmToTarget(target)
+					if interruptTarget then
+						target = interruptTarget
+						State.BoulderLevelFarmTarget = target
+						State.SetDigBoulderTarget(target, false)
+						setStatus("Tween to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
+						reachedTarget = false
+					end
 					if reachedTarget
 						and State.BoulderLevelFarmBombEnabled
 						and State.BoulderLevelFarmEnabled
@@ -5592,7 +5690,13 @@ function State.RunBoulderLevelFarmLoop()
 							end
 						end
 
-						if not State.TweenBoulderLevelFarmToPosition(position) and not State.BoulderLevelFarmEnabled then
+						local reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(position, target)
+						if interruptTarget then
+							target = interruptTarget
+							State.BoulderLevelFarmTarget = target
+							State.SetDigBoulderTarget(target, false)
+							setStatus("Tween to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
+						elseif not reachedPosition and not State.BoulderLevelFarmEnabled then
 							break
 						end
 
@@ -5644,6 +5748,7 @@ function State.SetBoulderLevelFarmEnabled(enabled, persist)
 
 	State.BoulderLevelFarmEnabled = enabled == true
 	if not State.BoulderLevelFarmEnabled then
+		State.BoulderLevelFarmRouteTweening = false
 		if State.BoulderLevelFarmTween then
 			pcall(function()
 				State.BoulderLevelFarmTween:Cancel()
@@ -5658,6 +5763,9 @@ function State.SetBoulderLevelFarmEnabled(enabled, persist)
 		if State.BoulderTeleporting then
 			setBoulderTeleporting(false, false)
 		end
+		State.BoulderRejoinNoTargetSince = nil
+		State.BoulderRejoinDigErrorSince = nil
+		State.BoulderLevelFarmRouteTweening = false
 		State.BoulderLevelFarmPrimed = false
 		State.RunBoulderLevelFarmLoop()
 	end
@@ -5740,6 +5848,7 @@ function State.SetBoulderRejoinEnabled(enabled, persist)
 		State.BoulderRejoinEnabled = false
 		State.BoulderRejoining = false
 		State.BoulderRejoinNoTargetSince = nil
+		State.BoulderRejoinDigErrorSince = nil
 		State.UpdateBoulderRejoinButton()
 		return State.ShowLockedScriptMessage()
 	end
@@ -5751,6 +5860,7 @@ function State.SetBoulderRejoinEnabled(enabled, persist)
 	State.BoulderRejoinEnabled = enabled == true
 	State.BoulderRejoining = false
 	State.BoulderRejoinNoTargetSince = nil
+	State.BoulderRejoinDigErrorSince = nil
 	State.LastBoulderRejoinTick = 0
 	State.UpdateBoulderRejoinButton()
 	setStatus(State.BoulderRejoinEnabled and "Rune empty rejoin ON" or "Rune empty rejoin OFF", State.BoulderRejoinEnabled and Theme.Good or Theme.Muted)
@@ -5927,34 +6037,76 @@ function State.TryBoulderEmptyRejoin()
 		return
 	end
 
+	if State.BoulderLevelFarmEnabled and State.BoulderLevelFarmRouteTweening then
+		State.BoulderRejoinNoTargetSince = nil
+		State.BoulderRejoinDigErrorSince = nil
+		return
+	end
+
+	local rejoinDelay = tonumber(Config.BoulderRejoinDelay) or 5
+	local now = os.clock()
 	local hasDigError = State.HasTooFarDigNotification and State.HasTooFarDigNotification()
 	local matchingTargets = State.CountBoulderLevelFarmMatches()
-	if matchingTargets > 0 and not hasDigError then
+
+	if matchingTargets > 0 then
+		State.BoulderRejoinNoTargetSince = nil
+	else
+		if not State.BoulderRejoinNoTargetSince then
+			State.BoulderRejoinNoTargetSince = now
+			if not hasDigError then
+				setStatus(State.GetBoulderLevelSummary() .. " runes empty, waiting " .. tostring(rejoinDelay) .. "s before rejoin", Theme.Muted)
+			end
+		end
+	end
+
+	if hasDigError then
+		if not State.BoulderRejoinDigErrorSince then
+			State.BoulderRejoinDigErrorSince = now
+			setStatus("Nothing to dig here x100+, waiting " .. tostring(rejoinDelay) .. "s before rejoin", Theme.Muted)
+		end
+	else
+		State.BoulderRejoinDigErrorSince = nil
+	end
+
+	local rejoinReason = nil
+	if State.BoulderRejoinDigErrorSince and now - State.BoulderRejoinDigErrorSince >= rejoinDelay then
+		rejoinReason = "dig_error"
+	elseif State.BoulderRejoinNoTargetSince and now - State.BoulderRejoinNoTargetSince >= rejoinDelay then
+		rejoinReason = "empty"
+	end
+
+	if not rejoinReason then
+		return
+	end
+
+	hasDigError = State.HasTooFarDigNotification and State.HasTooFarDigNotification()
+	matchingTargets = State.CountBoulderLevelFarmMatches()
+
+	if rejoinReason == "dig_error" then
+		if not hasDigError then
+			State.BoulderRejoinDigErrorSince = nil
+			return
+		end
+	elseif matchingTargets > 0 then
 		State.BoulderRejoinNoTargetSince = nil
 		return
 	end
 
-	local reason = hasDigError and "Nothing to dig here x100+" or (State.GetBoulderLevelSummary() .. " runes empty")
-	local rejoinDelay = tonumber(Config.BoulderRejoinDelay) or 5
-	local now = os.clock()
-	if not State.BoulderRejoinNoTargetSince then
-		State.BoulderRejoinNoTargetSince = now
-		setStatus(reason .. ", waiting " .. tostring(rejoinDelay) .. "s before rejoin", Theme.Muted)
-		return
-	end
-	if now - State.BoulderRejoinNoTargetSince < rejoinDelay then
-		return
-	end
-
 	State.BoulderRejoinNoTargetSince = nil
-	setStatus(reason .. ", rejoining", Theme.Good)
+	State.BoulderRejoinDigErrorSince = nil
+	local statusReason = rejoinReason == "dig_error" and "Nothing to dig here x100+" or (State.GetBoulderLevelSummary() .. " runes empty")
+	setStatus(statusReason .. ", rejoining", Theme.Good)
 	task.spawn(function()
 		local ok, result = pcall(function()
 			return State.RejoinCurrentServer()
 		end)
 		if not ok or result ~= true then
 			State.BoulderRejoining = false
-			State.BoulderRejoinNoTargetSince = os.clock()
+			if rejoinReason == "dig_error" then
+				State.BoulderRejoinDigErrorSince = os.clock()
+			else
+				State.BoulderRejoinNoTargetSince = os.clock()
+			end
 		end
 	end)
 end
@@ -5974,6 +6126,12 @@ end
 
 function State.BoulderRejoinHeartbeat()
 	if not State.BoulderRejoinEnabled then
+		return
+	end
+
+	if State.BoulderLevelFarmEnabled and State.BoulderLevelFarmRouteTweening then
+		State.BoulderRejoinNoTargetSince = nil
+		State.BoulderRejoinDigErrorSince = nil
 		return
 	end
 
