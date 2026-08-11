@@ -3843,6 +3843,23 @@ local function getTeleportablePlayers()
 	return playerList
 end
 
+function State.ClearTeleportPlayerSelection(persist)
+	if not State.SelectedTeleportPlayerUserId and not State.SelectedTeleportPlayerName then
+		return false
+	end
+
+	State.SelectedTeleportPlayerUserId = nil
+	State.SelectedTeleportPlayerName = nil
+	Config.SelectedTeleportPlayerUserId = 0
+	Config.SelectedTeleportPlayerName = ""
+
+	if persist ~= false then
+		State.SaveConfig()
+	end
+
+	return true
+end
+
 local function setTeleportPlayer(player, persist)
 	if not player or player == LocalPlayer then
 		return false
@@ -6935,9 +6952,8 @@ updatePlayerDropdownText = function()
 	local player = getTeleportTargetPlayer()
 	if player then
 		PlayerDropdownButton.Text = "Player: " .. getPlayerDisplayName(player)
-	elseif State.SelectedTeleportPlayerName then
-		PlayerDropdownButton.Text = "Player left: " .. tostring(State.SelectedTeleportPlayerName)
 	else
+		State.ClearTeleportPlayerSelection(false)
 		PlayerDropdownButton.Text = "Select player"
 	end
 end
@@ -9427,12 +9443,13 @@ connect(Players.PlayerAdded, function()
 end)
 
 connect(Players.PlayerRemoving, function(player)
-	if State.SelectedTeleportPlayerUserId == player.UserId then
+	if State.SelectedTeleportPlayerUserId == player.UserId or State.SelectedTeleportPlayerName == player.Name then
 		if State.PlayerTeleporting then
 			State.PlayerTeleporting = false
 			updatePlayerTeleportButton()
 			setStatus("TP target left: " .. player.Name, Theme.Bad)
 		end
+		State.ClearTeleportPlayerSelection(true)
 		task.defer(updatePlayerDropdownText)
 	end
 
@@ -9612,34 +9629,38 @@ connect(UI.RunePlaceDropdownButton.Activated, function()
 	end
 end)
 
-for _, otherList in ipairs({
-	FilterTypeList,
-	WeightModeList,
-	PlayerDropdownList,
-	BoulderDropdownList,
-	UI.RuneDropdownList,
-	UI.DigBoulderDropdownList,
-	UI.BoulderLevelDropdownList,
-	BombDropdownList,
-	UI.RadarDropdownList
-}) do
-	connect(otherList:GetPropertyChangedSignal("Visible"), function()
-		if otherList.Visible then
-			UI.RunePlaceDropdownList.Visible = false
-		end
-	end)
-end
-
-for _, control in ipairs(Content:GetDescendants()) do
-	if control:IsA("TextButton")
-		and control ~= UI.RunePlaceDropdownButton
-		and control ~= UI.AutoPlaceRuneButton
-		and not control:IsDescendantOf(UI.RunePlaceDropdownList) then
-		connect(control.Activated, function()
-			UI.RunePlaceDropdownList.Visible = false
+function State.ConnectRunePlaceDropdownClosers()
+	for _, otherList in ipairs({
+		FilterTypeList,
+		WeightModeList,
+		PlayerDropdownList,
+		BoulderDropdownList,
+		UI.RuneDropdownList,
+		UI.DigBoulderDropdownList,
+		UI.BoulderLevelDropdownList,
+		BombDropdownList,
+		UI.RadarDropdownList
+	}) do
+		connect(otherList:GetPropertyChangedSignal("Visible"), function()
+			if otherList.Visible then
+				UI.RunePlaceDropdownList.Visible = false
+			end
 		end)
 	end
+
+	for _, control in ipairs(Content:GetDescendants()) do
+		if control:IsA("TextButton")
+			and control ~= UI.RunePlaceDropdownButton
+			and control ~= UI.AutoPlaceRuneButton
+			and not control:IsDescendantOf(UI.RunePlaceDropdownList) then
+			connect(control.Activated, function()
+				UI.RunePlaceDropdownList.Visible = false
+			end)
+		end
+	end
 end
+
+State.ConnectRunePlaceDropdownClosers()
 
 connect(UI.DigReplayButton.Activated, function()
 	FilterTypeList.Visible = false
