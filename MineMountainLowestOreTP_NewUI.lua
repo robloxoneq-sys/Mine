@@ -147,8 +147,34 @@ local function isMountainLoadingScreenActive(playerGui)
 	return isLoadingGuiShowing(loadingScreen)
 end
 
+local function waitForMountainLoadingScreen(player, playerGui)
+	local loadingScreen = playerGui and playerGui:FindFirstChild("MountainLoadingScreen")
+	local announced = false
+
+	while isCurrentLoadGate() do
+		if loadingScreen and loadingScreen.Parent then
+			return loadingScreen
+		end
+
+		if not announced then
+			announced = true
+			print("[CrystalTools] waiting for MountainLoadingScreen to appear...")
+		end
+
+		task.wait(LOAD_CHECK_INTERVAL)
+
+		if not playerGui or not playerGui.Parent then
+			playerGui = waitForPlayerGui(player)
+		end
+
+		loadingScreen = playerGui and playerGui:FindFirstChild("MountainLoadingScreen")
+	end
+
+	return nil
+end
+
 local function isMineMountainLoadDone(player, playerGui)
-	if not playerGui then
+	if not (playerGui and playerGui.Parent) then
 		return false
 	end
 
@@ -180,6 +206,12 @@ end
 
 local function waitForMineMountainLoadDone(player)
 	local playerGui = waitForPlayerGui(player)
+	local loadingScreen = waitForMountainLoadingScreen(player, playerGui)
+	if not loadingScreen then
+		return
+	end
+
+	playerGui = loadingScreen.Parent
 	local clearSince = nil
 	local announced = false
 
@@ -198,8 +230,14 @@ local function waitForMineMountainLoadDone(player)
 		end
 
 		task.wait(LOAD_CHECK_INTERVAL)
-		if playerGui and not playerGui.Parent then
+		if not playerGui or not playerGui.Parent then
 			playerGui = waitForPlayerGui(player)
+			loadingScreen = waitForMountainLoadingScreen(player, playerGui)
+			if not loadingScreen then
+				return
+			end
+			playerGui = loadingScreen.Parent
+			clearSince = nil
 		end
 	end
 
@@ -255,6 +293,7 @@ local AllowedUsers = {
 		Laserback5 = true, --ลูกค้า
 		Mixmixz9 = true, --ลูกค้า
 		jojo197221 = true, --ลูกค้า
+		AxeL2488Q = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -263,6 +302,8 @@ local AllowedUsers = {
 	winniePro55 = true,
 	Honlnwzag2g = true,
 
+
+	AxeL2488Q = true, --ลูกค้า
 	jojo197221 = true, --ลูกค้า
 	Mixmixz9 = true, --ลูกค้า
 	Laserback5 = true, --ลูกค้า
