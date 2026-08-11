@@ -253,6 +253,7 @@ local AllowedUsers = {
 		sazaq123 = true, --ลูกค้า
 		Maxascxxx = true, --ลูกค้า
 		Laserback5 = true, --ลูกค้า
+		Mixmixz9 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -261,6 +262,7 @@ local AllowedUsers = {
 	winniePro55 = true,
 	Honlnwzag2g = true,
 
+	Mixmixz9 = true, --ลูกค้า
 	Laserback5 = true, --ลูกค้า
 	Maxascxxx = true, --ลูกค้า
 	sazaq123 = true, --ลูกค้า
@@ -356,8 +358,8 @@ local Config = {
 	BoulderRejoinDelay = 5,
 	BoulderLevelFarmLevel = "All",
 	BoulderLevelFarmLevels = { "All" },
-	BoulderLevelFarmUpDistance = 0,
-	BoulderLevelFarmForwardDistance = 0,
+	BoulderLevelFarmUpDistance = 100,
+	BoulderLevelFarmForwardDistance = 1500,
 	BoulderLevelFarmSpeed = 300,
 	BoulderLevelFarmUnderOffset = -10,
 	BoulderLevelFarmReturnDistance = 25,
@@ -1380,7 +1382,7 @@ local MOBILE_COLLAPSED_WIDTH = 300
 UI.HorizontalViewHeight = 540
 
 local Gui = create("ScreenGui", {
-	Name = "CrystalTools_NewUI",
+	Name = "BenJaMinX",
 	ResetOnSpawn = false,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 }, LocalPlayer:WaitForChild("PlayerGui"))
