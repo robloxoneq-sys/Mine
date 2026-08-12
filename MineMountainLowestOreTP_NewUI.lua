@@ -325,6 +325,7 @@ local AllowedUsers = {
 		jojo197221 = true, --ลูกค้า
 		AxeL2488Q = true, --ลูกค้า
 		Tempura_l2 = true, --ลูกค้า
+		Dodorexy_7 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -334,6 +335,7 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 
+	Dodorexy_7 = true, --ลูกค้า
 	Tempura_l2 = true, --ลูกค้า
 	AxeL2488Q = true, --ลูกค้า
 	jojo197221 = true, --ลูกค้า
