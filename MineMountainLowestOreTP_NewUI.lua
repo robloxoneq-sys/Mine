@@ -5677,73 +5677,74 @@ function State.PrimeBoulderLevelFarmRoute()
 	if not root then
 		return false
 	end
-	State.BoulderLevelFarmRouteTweening = true
-	local reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(root.Position + Vector3.new(0, Config.BoulderLevelFarmUpDistance or 300, 0))
-	if interruptTarget == "CrystalFarm" then
-		State.BoulderLevelFarmRouteTweening = false
-		return false
+
+	if State.SuspendNoVoidForRuneTween then
+		State.SuspendNoVoidForRuneTween("BoulderLevelFarmPrime")
 	end
+
+	State.BoulderLevelFarmRouteTweening = true
+	local reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(root.Position + Vector3.new(0, Config.BoulderLevelFarmUpDistance or 200, 0))
 	if interruptTarget then
 		State.BoulderLevelFarmPrimed = true
 		State.BoulderLevelFarmRouteTweening = false
+		if State.RestoreNoVoidAfterRuneTween then
+			State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmPrime")
+		end
 		return true
 	end
 	if not reachedPosition then
 		State.BoulderLevelFarmRouteTweening = false
+		if State.RestoreNoVoidAfterRuneTween then
+			State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmPrime")
+		end
 		return false
 	end
 
 	_, root = getCharacterParts(LocalPlayer)
 	if not root then
 		State.BoulderLevelFarmRouteTweening = false
+		if State.RestoreNoVoidAfterRuneTween then
+			State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmPrime")
+		end
 		return false
 	end
-	reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(root.Position + (root.CFrame.LookVector * (Config.BoulderLevelFarmForwardDistance or 1800)))
-	if interruptTarget == "CrystalFarm" then
-		State.BoulderLevelFarmRouteTweening = false
-		return false
-	end
+	reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(root.Position + (root.CFrame.LookVector * (Config.BoulderLevelFarmForwardDistance or 2500)))
 	if interruptTarget then
 		State.BoulderLevelFarmPrimed = true
 		State.BoulderLevelFarmRouteTweening = false
+		if State.RestoreNoVoidAfterRuneTween then
+			State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmPrime")
+		end
 		return true
 	end
 	if not reachedPosition then
 		State.BoulderLevelFarmRouteTweening = false
+		if State.RestoreNoVoidAfterRuneTween then
+			State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmPrime")
+		end
 		return false
 	end
 
 	State.BoulderLevelFarmPrimed = true
 	State.BoulderLevelFarmRouteTweening = false
+	if State.RestoreNoVoidAfterRuneTween then
+		State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmPrime")
+	end
 	return true
 end
 
 function State.TweenBoulderLevelFarmToTarget(target)
+	if not State.PrimeBoulderLevelFarmRoute() then
+		return false
+	end
+
 	if State.SuspendNoVoidForRuneTween then
-		State.SuspendNoVoidForRuneTween("BoulderLevelFarmRoute")
+		State.SuspendNoVoidForRuneTween("BoulderLevelFarmTarget")
 	end
-
-	local reachedTarget = false
-	local interruptTarget = nil
-	local ok, resultA, resultB = pcall(function()
-		if not State.PrimeBoulderLevelFarmRoute() then
-			return false, nil
-		end
-
-		return State.TweenBoulderLevelFarmToPosition(State.GetBoulderLevelFarmPosition(target), target)
-	end)
-
-	if ok then
-		reachedTarget = resultA == true
-		interruptTarget = resultB
-	else
-		warn("[CrystalTools] Rune farm route failed:", resultA)
-	end
-
+	local reachedTarget, interruptTarget = State.TweenBoulderLevelFarmToPosition(State.GetBoulderLevelFarmPosition(target), target)
 	if State.RestoreNoVoidAfterRuneTween then
-		State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmRoute")
+		State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmTarget")
 	end
-
 	return reachedTarget, interruptTarget
 end
 
@@ -5762,7 +5763,7 @@ function State.RunBoulderLevelFarmLoop()
 				continue
 			end
 
-			if State.BoulderLevelFarmPrimed or not (State.IsCrystalPriorityActive and State.IsCrystalPriorityActive()) then
+			if State.BoulderLevelFarmPrimed or State.PrimeBoulderLevelFarmRoute() then
 				local target = State.GetNextBoulderLevelFarmTarget()
 				if target then
 					State.BoulderLevelFarmTarget = target
