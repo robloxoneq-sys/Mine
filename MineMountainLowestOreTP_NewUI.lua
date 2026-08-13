@@ -326,6 +326,7 @@ local AllowedUsers = {
 		AxeL2488Q = true, --ลูกค้า
 		Tempura_l2 = true, --ลูกค้า
 		Dodorexy_7 = true, --ลูกค้า
+		minghon5555 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -335,6 +336,7 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 
+	minghon5555 = true, --ลูกค้า
 	Dodorexy_7 = true, --ลูกค้า
 	Tempura_l2 = true, --ลูกค้า
 	AxeL2488Q = true, --ลูกค้า
@@ -436,7 +438,7 @@ local Config = {
 	BoulderHopEmptyDelay = 5,
 	BoulderHopSort = "Asc",
 	BoulderRejoinStart = false,
-	BoulderRejoinDelay = 5,
+	BoulderRejoinDelay = 1,
 	BoulderLevelFarmLevel = "All",
 	BoulderLevelFarmLevels = { "All" },
 	BoulderLevelFarmUpDistance = 200,
