@@ -393,6 +393,10 @@ end)
 local Config = {
 	FarmDistance = 100,
 	FarmInterval = 0.2,
+	CrystalFarmTweenSpeed = 600,
+	CrystalFarmTweenInterval = 0.05,
+	CrystalFarmCollectDistance = 10,
+	CrystalFarmCollectTimeout = 8,
 	WeightEnabled = false,
 	MoneyEnabled = false,
 	LuckEnabled = false,
@@ -435,8 +439,8 @@ local Config = {
 	BoulderRejoinDelay = 5,
 	BoulderLevelFarmLevel = "All",
 	BoulderLevelFarmLevels = { "All" },
-	BoulderLevelFarmUpDistance = 150,
-	BoulderLevelFarmForwardDistance = 1500,
+	BoulderLevelFarmUpDistance = 200,
+	BoulderLevelFarmForwardDistance = 2500,
 	BoulderLevelFarmSpeed = 600,
 	BoulderLevelFarmUnderOffset = -10,
 	BoulderLevelFarmReturnDistance = 25,
@@ -446,6 +450,7 @@ local Config = {
 	PickaxeRecoverInterval = 1,
 	DigReplayStart = false,
 	NoclipStart = false,
+	NoVoidRescueStart = false,
 	FloatStart = false,
 	SpeedHackStart = false,
 	InfiniteJumpStart = false,
@@ -647,6 +652,9 @@ do
 		Config.AutoPlaceRuneStart = savedConfig.AutoPlaceRuneStart == true
 			or savedConfig.AutoPlaceRunes == true
 		Config.NoclipStart = savedConfig.NoclipStart == true or savedConfig.NoclipEnabled == true
+		Config.NoVoidRescueStart = savedConfig.NoVoidRescueStart == true
+			or savedConfig.NoVoidRescueEnabled == true
+			or savedConfig.VoidRescueBypassEnabled == true
 		Config.FloatStart = savedConfig.FloatStart == true or savedConfig.Floating == true
 		Config.SpeedHackStart = savedConfig.SpeedHackStart == true or savedConfig.SpeedHackEnabled == true
 		Config.InfiniteJumpStart = savedConfig.InfiniteJumpStart == true or savedConfig.InfiniteJumpEnabled == true
@@ -702,6 +710,12 @@ local State = {
 	Connections = {},
 	LockedScriptUnlocked = _G.CrystalToolsLockedScriptUnlocked == true,
 	Farming = false,
+	CrystalFarmCollecting = false,
+	CrystalFarmTarget = nil,
+	CrystalFarmTween = nil,
+	CrystalFarmPriorityUntil = 0,
+	CrystalFarmPriorityScanTick = -1000000000,
+	CrystalFarmPriorityHasTarget = false,
 	Dropping = false,
 	DroppingRunes = false,
 	DroppingMoneyCrystals = false,
@@ -737,6 +751,16 @@ local State = {
 	SelectedBoulderLevel = tostring(Config.BoulderLevelFarmLevel or "All"),
 	SelectedBoulderLevels = {},
 	NoclipEnabled = false,
+	NoVoidRescueEnabled = false,
+	NoVoidLastFallCFrame = nil,
+	NoVoidLastFallAt = 0,
+	NoVoidCounterUntil = 0,
+	NoVoidCounterTeleports = 0,
+	NoVoidLastLogAt = 0,
+	NoVoidRemotes = {},
+	NoVoidSuspendedByRuneTween = false,
+	NoVoidRestoreAfterRuneTween = false,
+	NoVoidSuspendCount = 0,
 	Floating = false,
 	FloatHeight = nil,
 	FloatCharacter = nil,
@@ -909,6 +933,7 @@ function State.SaveConfig()
 	Config.BoulderLevelFarmLevel = selectedBoulderLevels[1] or "All"
 	Config.DigReplayStart = State.DigReplayEnabled == true
 	Config.NoclipStart = State.NoclipEnabled == true
+	Config.NoVoidRescueStart = State.NoVoidRescueEnabled == true
 	Config.FloatStart = State.Floating == true
 	Config.SpeedHackStart = State.SpeedHackEnabled == true
 	Config.InfiniteJumpStart = State.InfiniteJumpEnabled == true
@@ -967,6 +992,8 @@ function State.SaveConfig()
 		SelectedDigBoulderName = State.SelectedDigBoulderName,
 		NoclipStart = Config.NoclipStart,
 		NoclipEnabled = Config.NoclipStart,
+		NoVoidRescueStart = Config.NoVoidRescueStart,
+		NoVoidRescueEnabled = Config.NoVoidRescueStart,
 		FloatStart = Config.FloatStart,
 		Floating = Config.FloatStart,
 		SpeedHackStart = Config.SpeedHackStart,
@@ -2399,6 +2426,18 @@ UI.BoulderNoclipButton = create("TextButton", {
 }, Content)
 styleSurface(UI.BoulderNoclipButton, 6, Theme.Accent)
 
+UI.NoVoidRescueButton = create("TextButton", {
+	Position = UDim2.new(1 / 3, 0, 0, 936),
+	Size = UDim2.new(1 / 6, -10, 0, 34),
+	BackgroundColor3 = Theme.ButtonDark,
+	BorderSizePixel = 0,
+	Text = "VOID OFF",
+	TextColor3 = Theme.Text,
+	TextSize = 10,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.NoVoidRescueButton, 6, Theme.Accent)
+
 local BoulderEspButton = create("TextButton", {
 	Position = UDim2.new(1 / 2, 4, 0, 936),
 	Size = UDim2.new(1 / 4, -13, 0, 34),
@@ -2748,6 +2787,7 @@ do
 		PlayerTeleportButton,
 		BoulderTeleportButton,
 		UI.BoulderNoclipButton,
+		UI.NoVoidRescueButton,
 		BoulderEspButton,
 		BoulderPromptButton,
 		UI.BoulderHopButton,
@@ -2802,6 +2842,7 @@ do
 		PlayerTeleportButton,
 		BoulderTeleportButton,
 		UI.BoulderNoclipButton,
+		UI.NoVoidRescueButton,
 		BoulderEspButton,
 		BoulderPromptButton,
 		UI.BoulderHopButton,
@@ -2883,12 +2924,16 @@ function State.RunDigReplayLoop()
 	State.DigReplayThreadRunning = true
 	task.spawn(function()
 		while State.DigReplayEnabled do
-			local remote = State.GetDigRequestRemote()
-			local target = State.GetSelectedDigBoulderTarget and State.GetSelectedDigBoulderTarget()
-			if remote and remote.Parent and target and State.FireDigRequestAtBoulder then
-				State.FireDigRequestAtBoulder(remote, target)
+			if State.IsCrystalPriorityActive and State.IsCrystalPriorityActive() then
+				task.wait(Config.CrystalFarmTweenInterval or 0.05)
+			else
+				local remote = State.GetDigRequestRemote()
+				local target = State.GetSelectedDigBoulderTarget and State.GetSelectedDigBoulderTarget()
+				if remote and remote.Parent and target and State.FireDigRequestAtBoulder then
+					State.FireDigRequestAtBoulder(remote, target)
+				end
+				task.wait(Config.DigLoopInterval or 0.01)
 			end
-			task.wait(Config.DigLoopInterval or 0.01)
 		end
 
 		State.DigReplayThreadRunning = false
@@ -3069,15 +3114,17 @@ local function applyVerticalControlsLayout()
 	BoulderDropdownList.Position = UDim2.new(0, 14, 0, 770)
 	BoulderDropdownList.Size = UDim2.new(1, -28, 0, 102)
 	UI.BoulderNoclipButton.Position = UDim2.new(0, 14, 0, 772)
-	UI.BoulderNoclipButton.Size = UDim2.new(0.2, -12, 0, 34)
-	BoulderEspButton.Position = UDim2.new(0.2, 10, 0, 772)
-	BoulderEspButton.Size = UDim2.new(0.2, -12, 0, 34)
-	BoulderPromptButton.Position = UDim2.new(0.4, 6, 0, 772)
-	BoulderPromptButton.Size = UDim2.new(0.2, -12, 0, 34)
-	UI.BoulderHopButton.Position = UDim2.new(0.6, 2, 0, 772)
-	UI.BoulderHopButton.Size = UDim2.new(0.2, -12, 0, 34)
-	UI.BoulderRejoinButton.Position = UDim2.new(0.8, -2, 0, 772)
-	UI.BoulderRejoinButton.Size = UDim2.new(0.2, -12, 0, 34)
+	UI.BoulderNoclipButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	UI.NoVoidRescueButton.Position = UDim2.new(1 / 6, 10, 0, 772)
+	UI.NoVoidRescueButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	BoulderEspButton.Position = UDim2.new(2 / 6, 6, 0, 772)
+	BoulderEspButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	BoulderPromptButton.Position = UDim2.new(3 / 6, 2, 0, 772)
+	BoulderPromptButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	UI.BoulderHopButton.Position = UDim2.new(4 / 6, -2, 0, 772)
+	UI.BoulderHopButton.Size = UDim2.new(1 / 6, -10, 0, 34)
+	UI.BoulderRejoinButton.Position = UDim2.new(5 / 6, -6, 0, 772)
+	UI.BoulderRejoinButton.Size = UDim2.new(1 / 6, -10, 0, 34)
 	UI.FloatButton.Position = UDim2.new(0, 14, 0, 812)
 	UI.FloatButton.Size = UDim2.new(1 / 3, -15, 0, 34)
 	UI.SpeedButton.Position = UDim2.new(1 / 3, 7, 0, 812)
@@ -3127,7 +3174,7 @@ local function applyHorizontalControlsLayout(width)
 	local halfWidth = math.floor((columnWidth - 10) / 2)
 	local tpButtonWidth = math.min(104, math.max(82, math.floor(columnWidth * 0.32)))
 	local playerDropdownWidth = columnWidth - tpButtonWidth - 8
-	local boulderSecondaryWidth = math.floor((columnWidth - 40) / 5)
+	local boulderSecondaryWidth = math.floor((columnWidth - 50) / 6)
 	local runeButtonWidth = math.min(104, math.max(86, math.floor(columnWidth * 0.28)))
 	local runeAmountWidth = math.min(72, math.max(58, math.floor(columnWidth * 0.2)))
 	local runeDropdownWidth = columnWidth - runeButtonWidth - runeAmountWidth - 16
@@ -3183,10 +3230,11 @@ local function applyHorizontalControlsLayout(width)
 	setRect(BoulderDropdownButton, rightX + tpButtonWidth + 8, 116, playerDropdownWidth, 34)
 	setRect(BoulderDropdownList, rightX, 158, columnWidth, 108)
 	setRect(UI.BoulderNoclipButton, rightX, 158, boulderSecondaryWidth, 32)
-	setRect(BoulderEspButton, rightX + boulderSecondaryWidth + 10, 158, boulderSecondaryWidth, 32)
-	setRect(BoulderPromptButton, rightX + (boulderSecondaryWidth * 2) + 20, 158, boulderSecondaryWidth, 32)
-	setRect(UI.BoulderHopButton, rightX + (boulderSecondaryWidth * 3) + 30, 158, boulderSecondaryWidth, 32)
-	setRect(UI.BoulderRejoinButton, rightX + (boulderSecondaryWidth * 4) + 40, 158, boulderSecondaryWidth, 32)
+	setRect(UI.NoVoidRescueButton, rightX + boulderSecondaryWidth + 10, 158, boulderSecondaryWidth, 32)
+	setRect(BoulderEspButton, rightX + (boulderSecondaryWidth * 2) + 20, 158, boulderSecondaryWidth, 32)
+	setRect(BoulderPromptButton, rightX + (boulderSecondaryWidth * 3) + 30, 158, boulderSecondaryWidth, 32)
+	setRect(UI.BoulderHopButton, rightX + (boulderSecondaryWidth * 4) + 40, 158, boulderSecondaryWidth, 32)
+	setRect(UI.BoulderRejoinButton, rightX + (boulderSecondaryWidth * 5) + 50, 158, boulderSecondaryWidth, 32)
 	setRect(UI.FloatButton, rightX, 200, math.floor((columnWidth - 20) / 3), 32)
 	setRect(UI.SpeedButton, rightX + math.floor((columnWidth - 20) / 3) + 10, 200, math.floor((columnWidth - 20) / 3), 32)
 	setRect(UI.InfiniteJumpButton, rightX + (math.floor((columnWidth - 20) / 3) * 2) + 20, 200, columnWidth - (math.floor((columnWidth - 20) / 3) * 2) - 20, 32)
@@ -3773,6 +3821,17 @@ local function setFarming(enabled, persist)
 		setStatus("Farm ON | " .. getFilterSummary(), Theme.Good)
 		log("Farm ON", getFilterSummary())
 	else
+		State.CrystalFarmCollecting = false
+		State.CrystalFarmTarget = nil
+		State.CrystalFarmPriorityUntil = 0
+		State.CrystalFarmPriorityHasTarget = false
+		State.CrystalFarmPriorityScanTick = -1000000000
+		if State.CrystalFarmTween then
+			pcall(function()
+				State.CrystalFarmTween:Cancel()
+			end)
+			State.CrystalFarmTween = nil
+		end
 		FarmButton.Text = "Start Farm"
 		FarmButton.BackgroundColor3 = Theme.Button
 		setStatus("Farm stopped", Theme.Muted)
@@ -5531,6 +5590,9 @@ function State.GetBoulderLevelFarmTweenInterruptTarget(currentTarget)
 	if not State.BoulderLevelFarmEnabled then
 		return nil
 	end
+	if State.IsCrystalPriorityActive and State.IsCrystalPriorityActive() then
+		return "CrystalFarm"
+	end
 
 	local target = State.GetNextBoulderLevelFarmTarget()
 	if not target then
@@ -5576,16 +5638,21 @@ function State.TweenBoulderLevelFarmToPosition(position, currentTarget)
 	State.BoulderLevelFarmTween = tween
 	tween:Play()
 
-	while State.BoulderLevelFarmEnabled and State.BoulderLevelFarmTween == tween and not completed do
-		interruptTarget = State.GetBoulderLevelFarmTweenInterruptTarget(currentTarget)
-		if interruptTarget then
-			pcall(function()
-				tween:Cancel()
-			end)
-			break
-		end
+	local ok, err = pcall(function()
+		while State.BoulderLevelFarmEnabled and State.BoulderLevelFarmTween == tween and not completed do
+			interruptTarget = State.GetBoulderLevelFarmTweenInterruptTarget(currentTarget)
+			if interruptTarget then
+				pcall(function()
+					tween:Cancel()
+				end)
+				break
+			end
 
-		task.wait(Config.BoulderLevelFarmTweenInterval or 0.1)
+			task.wait(Config.BoulderLevelFarmTweenInterval or 0.1)
+		end
+	end)
+	if not ok then
+		warn("[CrystalTools] Rune farm tween failed:", err)
 	end
 
 	if completedConnection then
@@ -5602,6 +5669,9 @@ function State.PrimeBoulderLevelFarmRoute()
 	if State.BoulderLevelFarmPrimed then
 		return true
 	end
+	if State.IsCrystalPriorityActive and State.IsCrystalPriorityActive() then
+		return false
+	end
 
 	local _, root = getCharacterParts(LocalPlayer)
 	if not root then
@@ -5609,6 +5679,10 @@ function State.PrimeBoulderLevelFarmRoute()
 	end
 	State.BoulderLevelFarmRouteTweening = true
 	local reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(root.Position + Vector3.new(0, Config.BoulderLevelFarmUpDistance or 300, 0))
+	if interruptTarget == "CrystalFarm" then
+		State.BoulderLevelFarmRouteTweening = false
+		return false
+	end
 	if interruptTarget then
 		State.BoulderLevelFarmPrimed = true
 		State.BoulderLevelFarmRouteTweening = false
@@ -5625,6 +5699,10 @@ function State.PrimeBoulderLevelFarmRoute()
 		return false
 	end
 	reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(root.Position + (root.CFrame.LookVector * (Config.BoulderLevelFarmForwardDistance or 1800)))
+	if interruptTarget == "CrystalFarm" then
+		State.BoulderLevelFarmRouteTweening = false
+		return false
+	end
 	if interruptTarget then
 		State.BoulderLevelFarmPrimed = true
 		State.BoulderLevelFarmRouteTweening = false
@@ -5641,11 +5719,32 @@ function State.PrimeBoulderLevelFarmRoute()
 end
 
 function State.TweenBoulderLevelFarmToTarget(target)
-	if not State.PrimeBoulderLevelFarmRoute() then
-		return false
+	if State.SuspendNoVoidForRuneTween then
+		State.SuspendNoVoidForRuneTween("BoulderLevelFarmRoute")
 	end
 
-	return State.TweenBoulderLevelFarmToPosition(State.GetBoulderLevelFarmPosition(target), target)
+	local reachedTarget = false
+	local interruptTarget = nil
+	local ok, resultA, resultB = pcall(function()
+		if not State.PrimeBoulderLevelFarmRoute() then
+			return false, nil
+		end
+
+		return State.TweenBoulderLevelFarmToPosition(State.GetBoulderLevelFarmPosition(target), target)
+	end)
+
+	if ok then
+		reachedTarget = resultA == true
+		interruptTarget = resultB
+	else
+		warn("[CrystalTools] Rune farm route failed:", resultA)
+	end
+
+	if State.RestoreNoVoidAfterRuneTween then
+		State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmRoute")
+	end
+
+	return reachedTarget, interruptTarget
 end
 
 function State.RunBoulderLevelFarmLoop()
@@ -5656,7 +5755,14 @@ function State.RunBoulderLevelFarmLoop()
 	State.BoulderLevelFarmThreadRunning = true
 	task.spawn(function()
 		while State.BoulderLevelFarmEnabled do
-			if State.BoulderLevelFarmPrimed or State.PrimeBoulderLevelFarmRoute() then
+			if State.IsCrystalPriorityActive and State.IsCrystalPriorityActive() then
+				State.CancelBoulderLevelFarmTweenForCrystal()
+				State.SetDigReplayEnabled(false, false)
+				task.wait(Config.CrystalFarmTweenInterval or 0.05)
+				continue
+			end
+
+			if State.BoulderLevelFarmPrimed or not (State.IsCrystalPriorityActive and State.IsCrystalPriorityActive()) then
 				local target = State.GetNextBoulderLevelFarmTarget()
 				if target then
 					State.BoulderLevelFarmTarget = target
@@ -5666,6 +5772,11 @@ function State.RunBoulderLevelFarmLoop()
 					end
 					setStatus("Tween to " .. State.GetDigBoulderDisplayName(target), Theme.Muted)
 					local reachedTarget, interruptTarget = State.TweenBoulderLevelFarmToTarget(target)
+					if interruptTarget == "CrystalFarm" then
+						State.SetDigReplayEnabled(false, false)
+						task.wait(Config.CrystalFarmTweenInterval or 0.05)
+						continue
+					end
 					if interruptTarget then
 						target = interruptTarget
 						State.BoulderLevelFarmTarget = target
@@ -5682,6 +5793,13 @@ function State.RunBoulderLevelFarmLoop()
 						State.UseBoulderLevelFarmBomb(target)
 					end
 					while State.BoulderLevelFarmEnabled and State.GetSelectedDigBoulderTarget() == target and target.Parent and State.IsBoulderLevelFarmMatch(target) do
+						if State.IsCrystalPriorityActive and State.IsCrystalPriorityActive() then
+							State.CancelBoulderLevelFarmTweenForCrystal()
+							State.SetDigReplayEnabled(false, false)
+							task.wait(Config.CrystalFarmTweenInterval or 0.05)
+							break
+						end
+
 						if State.EnsureDigToolEquipped then
 							State.EnsureDigToolEquipped()
 						end
@@ -5711,7 +5829,19 @@ function State.RunBoulderLevelFarmLoop()
 							end
 						end
 
+						local shouldSuspendReturnTween = root and (root.Position - position).Magnitude > (Config.BoulderLevelFarmReturnDistance or 25)
+						if shouldSuspendReturnTween and State.SuspendNoVoidForRuneTween then
+							State.SuspendNoVoidForRuneTween("BoulderLevelFarmReturn")
+						end
 						local reachedPosition, interruptTarget = State.TweenBoulderLevelFarmToPosition(position, target)
+						if shouldSuspendReturnTween and State.RestoreNoVoidAfterRuneTween then
+							State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmReturn")
+						end
+						if interruptTarget == "CrystalFarm" then
+							State.SetDigReplayEnabled(false, false)
+							task.wait(Config.CrystalFarmTweenInterval or 0.05)
+							break
+						end
 						if interruptTarget then
 							target = interruptTarget
 							State.BoulderLevelFarmTarget = target
@@ -5775,6 +5905,10 @@ function State.SetBoulderLevelFarmEnabled(enabled, persist)
 				State.BoulderLevelFarmTween:Cancel()
 			end)
 			State.BoulderLevelFarmTween = nil
+		end
+		if State.NoVoidSuspendedByRuneTween and State.RestoreNoVoidAfterRuneTween then
+			State.NoVoidSuspendCount = 1
+			State.RestoreNoVoidAfterRuneTween("BoulderLevelFarmStop")
 		end
 		State.SetDigReplayEnabled(false, false)
 	else
@@ -5970,6 +6104,10 @@ function State.TryBoulderEmptyHop()
 	if not State.BoulderHopEnabled or State.BoulderHopTeleporting then
 		return
 	end
+	if State.IsCrystalPriorityActive and State.IsCrystalPriorityActive() then
+		State.BoulderHopNoTargetSince = nil
+		return
+	end
 
 	local matchingTargets = State.CountBoulderLevelFarmMatches()
 	if matchingTargets > 0 then
@@ -6057,6 +6195,11 @@ function State.TryBoulderEmptyRejoin()
 	if not State.BoulderRejoinEnabled or State.BoulderRejoining then
 		return
 	end
+	if State.IsCrystalPriorityActive and State.IsCrystalPriorityActive() then
+		State.BoulderRejoinNoTargetSince = nil
+		State.BoulderRejoinDigErrorSince = nil
+		return
+	end
 
 	if State.BoulderLevelFarmEnabled and State.BoulderLevelFarmRouteTweening then
 		State.BoulderRejoinNoTargetSince = nil
@@ -6136,6 +6279,10 @@ function State.BoulderHopHeartbeat()
 	if not State.BoulderHopEnabled then
 		return
 	end
+	if State.IsCrystalPriorityActive and State.IsCrystalPriorityActive() then
+		State.BoulderHopNoTargetSince = nil
+		return
+	end
 
 	local now = os.clock()
 	if now - State.LastBoulderHopTick < (Config.BoulderHopInterval or 1) then
@@ -6147,6 +6294,11 @@ end
 
 function State.BoulderRejoinHeartbeat()
 	if not State.BoulderRejoinEnabled then
+		return
+	end
+	if State.IsCrystalPriorityActive and State.IsCrystalPriorityActive() then
+		State.BoulderRejoinNoTargetSince = nil
+		State.BoulderRejoinDigErrorSince = nil
 		return
 	end
 
@@ -7574,6 +7726,289 @@ function State.SetNoclipEnabled(enabled, persist)
 	return State.NoclipEnabled
 end
 
+local NoVoidConfig = {
+	FallY = -45,
+	RescueDetectDistance = 35,
+	RescueWindow = 4,
+	CounterDuration = 2.5,
+	MaxCounterTeleports = 120,
+	BlockOutgoingFallDamage = true,
+	BlockOutgoingVoidRescue = true,
+	BlockIncomingVoidRescue = true
+}
+
+local NoVoidRemoteNames = {
+	FallDamage = true,
+	VoidRescue = true
+}
+
+local NoVoidHookKey = "CrystalToolsNoVoidRescueNamecallHook"
+local NoVoidHookState = _G[NoVoidHookKey]
+if type(NoVoidHookState) ~= "table" then
+	NoVoidHookState = {
+		Installed = false,
+		OldNamecall = nil
+	}
+	_G[NoVoidHookKey] = NoVoidHookState
+end
+NoVoidHookState.State = State
+NoVoidHookState.Config = NoVoidConfig
+NoVoidHookState.RemoteNames = NoVoidRemoteNames
+
+function State.ScanNoVoidRemotes()
+	State.NoVoidRemotes = State.NoVoidRemotes or {}
+	table.clear(State.NoVoidRemotes)
+
+	local remotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
+	for remoteName in pairs(NoVoidRemoteNames) do
+		local remote = remotesFolder and remotesFolder:FindFirstChild(remoteName, true) or nil
+		if not remote then
+			remote = ReplicatedStorage:FindFirstChild(remoteName, true)
+		end
+		if remote and (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) then
+			State.NoVoidRemotes[remoteName] = remote
+		end
+	end
+
+	return State.NoVoidRemotes
+end
+
+function State.IsNoVoidRemote(remote)
+	if typeof(remote) ~= "Instance" then
+		return false
+	end
+
+	local remoteNames = NoVoidHookState.RemoteNames or NoVoidRemoteNames
+	if not remoteNames[remote.Name] then
+		return false
+	end
+
+	return remote:IsDescendantOf(ReplicatedStorage)
+end
+
+function State.ShouldBlockNoVoidRemote(remote, methodName)
+	local hookState = _G[NoVoidHookKey]
+	local activeState = hookState and hookState.State
+	local activeConfig = hookState and hookState.Config or NoVoidConfig
+
+	if not activeState or activeState.NoVoidRescueEnabled ~= true then
+		return false
+	end
+
+	local checkerState = activeState or State
+	if not (checkerState.IsNoVoidRemote and checkerState.IsNoVoidRemote(remote)) then
+		return false
+	end
+
+	if remote.Name == "FallDamage" and activeConfig.BlockOutgoingFallDamage and methodName == "FireServer" then
+		return true
+	end
+
+	if remote.Name == "VoidRescue" and activeConfig.BlockOutgoingVoidRescue and methodName == "FireServer" then
+		return true
+	end
+
+	return false
+end
+
+function State.InstallNoVoidNamecallHook()
+	if NoVoidHookState.Installed then
+		return true
+	end
+
+	if type(hookmetamethod) ~= "function" or type(newcclosure) ~= "function" or type(getnamecallmethod) ~= "function" then
+		return false
+	end
+
+	local oldNamecall
+	oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+		local methodName = getnamecallmethod()
+		local hookState = _G[NoVoidHookKey]
+		local activeState = hookState and hookState.State
+		if activeState and activeState.ShouldBlockNoVoidRemote and activeState.ShouldBlockNoVoidRemote(self, methodName) then
+			return nil
+		end
+		return oldNamecall(self, ...)
+	end))
+
+	NoVoidHookState.OldNamecall = oldNamecall
+	NoVoidHookState.Installed = true
+	return true
+end
+
+function State.DisableNoVoidIncoming()
+	if type(getconnections) ~= "function" or not NoVoidConfig.BlockIncomingVoidRescue then
+		return 0
+	end
+
+	local remotes = State.ScanNoVoidRemotes()
+	local voidRescue = remotes.VoidRescue
+	if not (voidRescue and voidRescue:IsA("RemoteEvent")) then
+		return 0
+	end
+
+	local ok, connections = pcall(getconnections, voidRescue.OnClientEvent)
+	if not ok or type(connections) ~= "table" then
+		return 0
+	end
+
+	local disabled = 0
+	for _, connection in ipairs(connections) do
+		local success = pcall(function()
+			if connection.Disable then
+				connection:Disable()
+			elseif connection.Disconnect then
+				connection:Disconnect()
+			end
+		end)
+		if success then
+			disabled += 1
+		end
+	end
+	return disabled
+end
+
+function State.UpdateNoVoidRescueButton()
+	if not UI.NoVoidRescueButton then
+		return
+	end
+
+	if State.NoVoidRescueEnabled then
+		UI.NoVoidRescueButton.Text = "VOID ON"
+		UI.NoVoidRescueButton.BackgroundColor3 = Theme.Good
+	else
+		UI.NoVoidRescueButton.Text = "VOID OFF"
+		UI.NoVoidRescueButton.BackgroundColor3 = Theme.ButtonDark
+	end
+end
+
+function State.SetNoVoidRescueEnabled(enabled, persist)
+	State.NoVoidSuspendCount = 0
+	State.NoVoidSuspendedByRuneTween = false
+	State.NoVoidRestoreAfterRuneTween = false
+	State.NoVoidSuspendReason = nil
+	State.NoVoidRescueEnabled = enabled == true
+	State.NoVoidLastFallCFrame = nil
+	State.NoVoidLastFallAt = 0
+	State.NoVoidCounterUntil = 0
+	State.NoVoidCounterTeleports = 0
+	State.UpdateNoVoidRescueButton()
+
+	if State.NoVoidRescueEnabled then
+		local ok, err = pcall(function()
+			State.ScanNoVoidRemotes()
+		end)
+		if not ok then
+			warn("[CrystalTools] NoVoid scan failed:", err)
+		end
+		ok, err = pcall(function()
+			State.InstallNoVoidNamecallHook()
+		end)
+		if not ok then
+			warn("[CrystalTools] NoVoid hook failed:", err)
+		end
+		ok, err = pcall(function()
+			State.DisableNoVoidIncoming()
+		end)
+		if not ok then
+			warn("[CrystalTools] NoVoid incoming disable failed:", err)
+		end
+	end
+
+	setStatus(State.NoVoidRescueEnabled and "No void rescue ON" or "No void rescue OFF", State.NoVoidRescueEnabled and Theme.Good or Theme.Muted)
+	log(State.NoVoidRescueEnabled and "No void rescue ON" or "No void rescue OFF")
+
+	if persist ~= false then
+		State.SaveConfig()
+	end
+
+	return State.NoVoidRescueEnabled
+end
+
+function State.SetNoVoidRuntimeEnabled(enabled)
+	State.NoVoidRescueEnabled = enabled == true
+	State.NoVoidLastFallCFrame = nil
+	State.NoVoidLastFallAt = 0
+	State.NoVoidCounterUntil = 0
+	State.NoVoidCounterTeleports = 0
+	State.UpdateNoVoidRescueButton()
+	return State.NoVoidRescueEnabled
+end
+
+function State.SuspendNoVoidForRuneTween(reason)
+	State.NoVoidSuspendCount = (tonumber(State.NoVoidSuspendCount) or 0) + 1
+	State.NoVoidSuspendReason = reason or "RuneTween"
+	if State.NoVoidRescueEnabled then
+		State.NoVoidRestoreAfterRuneTween = true
+		State.NoVoidSuspendedByRuneTween = true
+		State.SetNoVoidRuntimeEnabled(false)
+	end
+	return State.NoVoidSuspendedByRuneTween == true
+end
+
+function State.RestoreNoVoidAfterRuneTween(reason)
+	State.NoVoidSuspendCount = math.max(0, (tonumber(State.NoVoidSuspendCount) or 0) - 1)
+	if State.NoVoidSuspendCount > 0 then
+		return false
+	end
+
+	State.NoVoidSuspendReason = nil
+	if State.NoVoidRestoreAfterRuneTween then
+		State.NoVoidRestoreAfterRuneTween = false
+		State.NoVoidSuspendedByRuneTween = false
+		State.SetNoVoidRuntimeEnabled(true)
+		return true
+	end
+
+	State.NoVoidSuspendedByRuneTween = false
+	return false
+end
+
+function State.NoVoidRescueHeartbeat()
+	if not State.NoVoidRescueEnabled then
+		return
+	end
+
+	local _, root, humanoid = getCharacterParts(LocalPlayer)
+	if not root or not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	local now = os.clock()
+	if root.Position.Y <= NoVoidConfig.FallY then
+		State.NoVoidLastFallCFrame = root.CFrame
+		State.NoVoidLastFallAt = now
+		State.NoVoidCounterUntil = now + NoVoidConfig.RescueWindow
+		State.NoVoidCounterTeleports = 0
+		return
+	end
+
+	if not State.NoVoidLastFallCFrame or now > State.NoVoidCounterUntil then
+		return
+	end
+
+	if State.NoVoidCounterTeleports >= NoVoidConfig.MaxCounterTeleports then
+		return
+	end
+
+	local pulledDistance = (root.Position - State.NoVoidLastFallCFrame.Position).Magnitude
+	local pulledUp = root.Position.Y > State.NoVoidLastFallCFrame.Position.Y + NoVoidConfig.RescueDetectDistance
+	if not pulledUp and pulledDistance < NoVoidConfig.RescueDetectDistance then
+		return
+	end
+
+	root.CFrame = State.NoVoidLastFallCFrame
+	root.AssemblyLinearVelocity = Vector3.new(0, -80, 0)
+	root.AssemblyAngularVelocity = Vector3.zero
+	State.NoVoidCounterTeleports += 1
+	State.NoVoidCounterUntil = now + NoVoidConfig.CounterDuration
+
+	if now - (State.NoVoidLastLogAt or 0) >= 0.35 then
+		State.NoVoidLastLogAt = now
+		log("No void rescue countered pullback", State.NoVoidCounterTeleports)
+	end
+end
+
 function State.UpdateFloatButton()
 	if not UI.FloatButton then
 		return
@@ -7856,6 +8291,9 @@ setPlayerTeleporting = function(enabled, persist)
 		end
 		if State.BoulderTeleporting then
 			State.BoulderTeleporting = false
+			if State.NoVoidSuspendedByRuneTween and State.RestoreNoVoidAfterRuneTween then
+				State.RestoreNoVoidAfterRuneTween("BoulderTeleport")
+			end
 			updateBoulderTeleportButton()
 			State.RefreshNoclip()
 		end
@@ -7964,11 +8402,17 @@ setBoulderTeleporting = function(enabled, persist)
 
 	if State.BoulderTeleporting then
 		State.RefreshNoclip()
+		if State.SuspendNoVoidForRuneTween then
+			State.SuspendNoVoidForRuneTween("BoulderTeleport")
+		end
 		State.LastBoulderTeleportTick = 0
 		BoulderDropdownList.Visible = false
 		setStatus("Rune TP ON center -> " .. getBoulderTargetDisplayName(getSelectedBoulderTarget()), Theme.Good)
 		log("Rune TP ON", State.SelectedBoulderName)
 	else
+		if State.NoVoidSuspendedByRuneTween and State.RestoreNoVoidAfterRuneTween then
+			State.RestoreNoVoidAfterRuneTween("BoulderTeleport")
+		end
 		State.RefreshNoclip()
 		setStatus("Rune TP stopped", Theme.Muted)
 		log("Rune TP OFF")
@@ -7995,6 +8439,9 @@ local function boulderTeleportHeartbeat()
 		State.BoulderTeleporting = false
 		State.SelectedBoulderTarget = nil
 		State.RefreshNoclip()
+		if State.NoVoidSuspendedByRuneTween and State.RestoreNoVoidAfterRuneTween then
+			State.RestoreNoVoidAfterRuneTween("BoulderTeleport")
+		end
 		updateBoulderTeleportButton()
 		updateBoulderDropdownText()
 		setStatus("Rune target gone: " .. tostring(targetName), Theme.Bad)
@@ -8029,6 +8476,9 @@ local function validateBoulderSelection()
 	if State.BoulderTeleporting then
 		State.BoulderTeleporting = false
 		State.RefreshNoclip()
+		if State.NoVoidSuspendedByRuneTween and State.RestoreNoVoidAfterRuneTween then
+			State.RestoreNoVoidAfterRuneTween("BoulderTeleport")
+		end
 		updateBoulderTeleportButton()
 		setStatus("Rune target gone: " .. tostring(targetName), Theme.Bad)
 	end
@@ -8357,7 +8807,191 @@ local function passesCrystalFilter(weight, money, luck)
 	return false
 end
 
-local function fireCrystalPrompt(prompt)
+function State.IsCrystalFarmPromptAlive(targetInfo)
+	local crystal = targetInfo and targetInfo.Crystal
+	local prompt = targetInfo and targetInfo.Prompt
+	return crystal and crystal.Parent and prompt and prompt.Parent
+end
+
+function State.GetCrystalCollectDistance(prompt)
+	local promptDistance = prompt and tonumber(prompt.MaxActivationDistance) or nil
+	local configuredDistance = tonumber(Config.CrystalFarmCollectDistance) or 10
+	local maxDistance = promptDistance or configuredDistance
+	return math.max(4, math.min(configuredDistance, maxDistance))
+end
+
+function State.GetCrystalTweenPosition(position, root, prompt)
+	if not position then
+		return nil
+	end
+
+	root = root or select(2, getCharacterParts(LocalPlayer))
+	local collectDistance = State.GetCrystalCollectDistance(prompt)
+	if not root then
+		return position + Vector3.new(0, 2, 0)
+	end
+
+	local direction = root.Position - position
+	if direction.Magnitude < 0.1 then
+		direction = Vector3.new(0, 0, 1)
+	else
+		direction = Vector3.new(direction.X, 0, direction.Z)
+		if direction.Magnitude < 0.1 then
+			direction = Vector3.new(0, 0, 1)
+		end
+	end
+
+	return position + direction.Unit * math.max(2, collectDistance - 1) + Vector3.new(0, 2, 0)
+end
+
+function State.GetNextCrystalFarmTarget()
+	local _, root = getCharacterParts(LocalPlayer)
+	local folders = getCrystalFolders()
+	if #folders == 0 then
+		return nil
+	end
+
+	local nearestTarget = nil
+	local nearestDistance = math.huge
+	local maxTargetDistance = tonumber(Config.FarmDistance) or 100
+	for _, folder in ipairs(folders) do
+		for _, crystal in ipairs(folder:GetChildren()) do
+			local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
+			if prompt then
+				local position = getPromptPosition(prompt)
+				if position then
+					local weight, money, luck = getCrystalFilterValues(crystal, prompt)
+					if passesCrystalFilter(weight, money, luck) then
+						local distance = root and (position - root.Position).Magnitude or 0
+						if distance <= maxTargetDistance and distance < nearestDistance then
+							nearestDistance = distance
+							nearestTarget = {
+								Crystal = crystal,
+								Prompt = prompt,
+								Position = position,
+								Distance = distance,
+								Weight = weight,
+								Money = money,
+								Luck = luck
+							}
+						end
+					end
+				end
+			end
+		end
+	end
+
+	return nearestTarget
+end
+
+function State.IsCrystalPriorityActive()
+	if State.Farming ~= true then
+		return false
+	end
+	if State.CrystalFarmCollecting == true or (tonumber(State.CrystalFarmPriorityUntil) or 0) > os.clock() then
+		return true
+	end
+
+	local now = os.clock()
+	if now - (tonumber(State.CrystalFarmPriorityScanTick) or 0) >= (Config.FarmInterval or 0.2) then
+		State.CrystalFarmPriorityScanTick = now
+		State.CrystalFarmPriorityHasTarget = State.GetNextCrystalFarmTarget() ~= nil
+	end
+
+	return State.CrystalFarmPriorityHasTarget == true
+end
+
+function State.CancelBoulderLevelFarmTweenForCrystal()
+	if State.BoulderLevelFarmTween then
+		pcall(function()
+			State.BoulderLevelFarmTween:Cancel()
+		end)
+		State.BoulderLevelFarmTween = nil
+	end
+	State.BoulderLevelFarmRouteTweening = false
+end
+
+function State.TweenToCrystalFarmTarget(targetInfo)
+	if not State.IsCrystalFarmPromptAlive(targetInfo) then
+		return false
+	end
+
+	local _, root, humanoid = getCharacterParts(LocalPlayer)
+	if not root then
+		return false
+	end
+	if humanoid then
+		humanoid.Sit = false
+	end
+
+	local position = getPromptPosition(targetInfo.Prompt) or targetInfo.Position
+	local targetPosition = State.GetCrystalTweenPosition(position, root, targetInfo.Prompt)
+	if not targetPosition then
+		return false
+	end
+
+	local distance = (root.Position - targetPosition).Magnitude
+	local speed = math.max(1, tonumber(Config.CrystalFarmTweenSpeed) or tonumber(Config.BoulderLevelFarmSpeed) or 600)
+	local duration = math.max(0.05, distance / speed)
+	local tween = game:GetService("TweenService"):Create(
+		root,
+		TweenInfo.new(duration, Enum.EasingStyle.Linear),
+		{ CFrame = CFrame.new(targetPosition, position) }
+	)
+
+	local completed = false
+	local playbackState = nil
+	local completedConnection = tween.Completed:Connect(function(state)
+		playbackState = state
+		completed = true
+	end)
+
+	State.CrystalFarmTween = tween
+	tween:Play()
+
+	local startedAt = os.clock()
+	local timeout = math.max(1, tonumber(Config.CrystalFarmCollectTimeout) or 8)
+	while State.Farming
+		and State.CrystalFarmTween == tween
+		and not completed
+		and State.IsCrystalFarmPromptAlive(targetInfo)
+		and os.clock() - startedAt < timeout do
+		local livePosition = getPromptPosition(targetInfo.Prompt)
+		if livePosition then
+			local liveDistance = (root.Position - livePosition).Magnitude
+			if liveDistance <= State.GetCrystalCollectDistance(targetInfo.Prompt) then
+				break
+			end
+		end
+		task.wait(Config.CrystalFarmTweenInterval or 0.05)
+	end
+
+	if completedConnection then
+		completedConnection:Disconnect()
+	end
+
+	if State.CrystalFarmTween == tween then
+		State.CrystalFarmTween = nil
+	end
+	pcall(function()
+		tween:Cancel()
+	end)
+
+	_, root = getCharacterParts(LocalPlayer)
+	position = getPromptPosition(targetInfo.Prompt) or position
+	local returnDistance = math.max(
+		tonumber(State.GetCrystalCollectDistance(targetInfo.Prompt)) or 10,
+		tonumber(Config.FarmDistance) or 100
+	)
+	return State.Farming
+		and State.IsCrystalFarmPromptAlive(targetInfo)
+		and root
+		and position
+		and ((root.Position - position).Magnitude <= returnDistance
+			or playbackState == Enum.PlaybackState.Completed)
+end
+
+function State.FireCrystalPrompt(prompt)
 	if not prompt then
 		return false
 	end
@@ -8394,7 +9028,7 @@ local function fireCrystalPrompt(prompt)
 	return true
 end
 
-local function isRuneWorkspaceChild(instance)
+function State.IsRuneWorkspaceChild(instance)
 	if not instance or instance.Parent ~= Workspace then
 		return false
 	end
@@ -8403,7 +9037,7 @@ local function isRuneWorkspaceChild(instance)
 	return name:sub(-4) == "rune"
 end
 
-local function getRuneRoots()
+function State.GetRuneRoots()
 	local roots = {}
 	local droppedRunes = Workspace:FindFirstChild("DroppedRunes")
 	if droppedRunes then
@@ -8411,7 +9045,7 @@ local function getRuneRoots()
 	end
 
 	for _, child in ipairs(Workspace:GetChildren()) do
-		if isRuneWorkspaceChild(child) then
+		if State.IsRuneWorkspaceChild(child) then
 			table.insert(roots, child)
 		end
 	end
@@ -8423,10 +9057,10 @@ local function getRuneRoots()
 	return roots
 end
 
-local function getRunePrompts()
+function State.GetRunePrompts()
 	local prompts = {}
 	local seen = {}
-	for _, runeRoot in ipairs(getRuneRoots()) do
+	for _, runeRoot in ipairs(State.GetRuneRoots()) do
 		for _, descendant in ipairs(runeRoot:GetDescendants()) do
 			if descendant:IsA("ProximityPrompt") and not seen[descendant] then
 				seen[descendant] = true
@@ -8442,7 +9076,7 @@ local function getRunePrompts()
 	return prompts
 end
 
-local function isPromptWithinDistance(prompt, origin, maxDistance)
+function State.IsPromptWithinDistance(prompt, origin, maxDistance)
 	if not (prompt and origin) then
 		return false
 	end
@@ -8455,7 +9089,7 @@ local function isPromptWithinDistance(prompt, origin, maxDistance)
 	return (position - origin.Position).Magnitude <= maxDistance
 end
 
-local function boulderPromptHeartbeat()
+function State.BoulderPromptHeartbeat()
 	if not State.BoulderPromptEnabled then
 		return
 	end
@@ -8472,9 +9106,9 @@ local function boulderPromptHeartbeat()
 	State.LastBoulderPromptTick = now
 
 	local fired = 0
-	local prompts = getRunePrompts()
+	local prompts = State.GetRunePrompts()
 	for _, prompt in ipairs(prompts) do
-		if prompt and prompt.Parent and isPromptWithinDistance(prompt, root, 100) and fireCrystalPrompt(prompt) then
+		if prompt and prompt.Parent and State.IsPromptWithinDistance(prompt, root, 100) and State.FireCrystalPrompt(prompt) then
 			fired += 1
 		end
 	end
@@ -8486,34 +9120,64 @@ local function boulderPromptHeartbeat()
 	end
 end
 
-local function runFarmCycle()
+function State.RunFarmCycle()
 	if not State.Farming then
+		return
+	end
+	if State.CrystalFarmCollecting then
 		return
 	end
 
 	local _, root = getCharacterParts(LocalPlayer)
-	local folders = getCrystalFolders()
-	if not root or #folders == 0 then
+	if not root then
 		return
 	end
 
 	local fired = 0
-	for _, folder in ipairs(folders) do
-		for _, crystal in ipairs(folder:GetChildren()) do
-			local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
-			if prompt then
-				local position = getPromptPosition(prompt)
-				if position then
-					local distance = (position - root.Position).Magnitude
-					if distance <= Config.FarmDistance then
-						local weight, money, luck = getCrystalFilterValues(crystal, prompt)
-						if passesCrystalFilter(weight, money, luck) and fireCrystalPrompt(prompt) then
-							fired += 1
-						end
-					end
-				end
+	local targetInfo = State.GetNextCrystalFarmTarget and State.GetNextCrystalFarmTarget()
+	if not targetInfo then
+		return
+	end
+
+	State.CrystalFarmCollecting = true
+	State.CrystalFarmTarget = targetInfo.Crystal
+	State.CrystalFarmPriorityUntil = os.clock() + 1
+	State.CrystalFarmPriorityHasTarget = true
+	State.CrystalFarmPriorityScanTick = os.clock()
+	if State.CancelBoulderLevelFarmTweenForCrystal then
+		State.CancelBoulderLevelFarmTweenForCrystal()
+	end
+
+	local ok, result = pcall(function()
+		local position = getPromptPosition(targetInfo.Prompt) or targetInfo.Position
+		local distance = position and (position - root.Position).Magnitude or math.huge
+		local collectDistance = tonumber(State.GetCrystalCollectDistance(targetInfo.Prompt)) or 10
+		if distance > collectDistance and State.TweenToCrystalFarmTarget then
+			setStatus("Crystal target -> tween collect", Theme.Muted)
+			State.TweenToCrystalFarmTarget(targetInfo)
+			position = getPromptPosition(targetInfo.Prompt) or position
+			_, root = getCharacterParts(LocalPlayer)
+			distance = root and position and (position - root.Position).Magnitude or math.huge
+		end
+
+		local currentCollectDistance = tonumber(State.GetCrystalCollectDistance(targetInfo.Prompt)) or collectDistance
+		if State.IsCrystalFarmPromptAlive(targetInfo) and distance <= math.max(collectDistance, currentCollectDistance) then
+			if State.FireCrystalPrompt(targetInfo.Prompt) then
+				return 1
 			end
 		end
+
+		return 0
+	end)
+	if ok then
+		fired = tonumber(result) or 0
+	end
+
+	State.CrystalFarmCollecting = false
+	State.CrystalFarmTarget = nil
+	State.CrystalFarmPriorityUntil = os.clock() + 0.5
+	if not ok then
+		warn("[CrystalTools] crystal farm cycle failed:", result)
 	end
 
 	if fired > 0 then
@@ -8521,7 +9185,7 @@ local function runFarmCycle()
 	end
 end
 
-local function farmHeartbeat()
+function State.FarmHeartbeat()
 	if not State.Farming then
 		return
 	end
@@ -8531,7 +9195,7 @@ local function farmHeartbeat()
 		return
 	end
 	State.LastFarmTick = now
-	runFarmCycle()
+	State.RunFarmCycle()
 end
 
 local function buyBombCycle()
@@ -9413,15 +10077,16 @@ State.UpdateFarmDistance(Config.FarmDistance, false)
 syncFilterControls()
 applyResponsiveLayout(true)
 
-connect(RunService.Heartbeat, farmHeartbeat)
+connect(RunService.Heartbeat, State.FarmHeartbeat)
 connect(RunService.Heartbeat, buyBombHeartbeat)
 connect(RunService.Heartbeat, playerTeleportHeartbeat)
 connect(RunService.Stepped, State.BoulderNoclipHeartbeat)
+connect(RunService.Heartbeat, State.NoVoidRescueHeartbeat)
 connect(RunService.Stepped, State.FloatHeartbeat)
 connect(RunService.RenderStepped, State.SpeedHackHeartbeat)
 connect(UserInputService.JumpRequest, State.InfiniteJumpRequest)
 connect(RunService.Heartbeat, boulderTeleportHeartbeat)
-connect(RunService.Heartbeat, boulderPromptHeartbeat)
+connect(RunService.Heartbeat, State.BoulderPromptHeartbeat)
 connect(RunService.Heartbeat, State.BoulderHopHeartbeat)
 connect(RunService.Heartbeat, State.BoulderRejoinHeartbeat)
 connect(RunService.Heartbeat, State.BuyRadarHeartbeat)
@@ -9798,6 +10463,27 @@ connect(UI.BoulderNoclipButton.Activated, function()
 	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	State.SetNoclipEnabled(not State.NoclipEnabled)
+end)
+
+connect(UI.NoVoidRescueButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	local ok, err = pcall(function()
+		State.SetNoVoidRescueEnabled(not State.NoVoidRescueEnabled)
+	end)
+	if not ok then
+		State.NoVoidRescueEnabled = false
+		State.UpdateNoVoidRescueButton()
+		setStatus("No void toggle failed: " .. tostring(err), Theme.Bad)
+		warn("[CrystalTools] NoVoid toggle failed:", err)
+	end
 end)
 
 connect(UI.FloatButton.Activated, function()
@@ -10475,6 +11161,18 @@ function State.StopNoclip()
 	return State.SetNoclipEnabled(false)
 end
 
+function State.SetNoVoidRescue(enabled)
+	return State.SetNoVoidRescueEnabled(enabled)
+end
+
+function State.StartNoVoidRescue()
+	return State.SetNoVoidRescueEnabled(true)
+end
+
+function State.StopNoVoidRescue()
+	return State.SetNoVoidRescueEnabled(false)
+end
+
 function State.SetFloat(enabled)
 	return State.SetFloatEnabled(enabled)
 end
@@ -10638,6 +11336,9 @@ function State.ApplySavedConfigStarts()
 	if Config.NoclipStart then
 		State.SetNoclipEnabled(true, false)
 	end
+	if Config.NoVoidRescueStart then
+		State.SetNoVoidRescueEnabled(true, false)
+	end
 	if Config.FloatStart then
 		State.SetFloatEnabled(true, false)
 	end
@@ -10694,6 +11395,7 @@ function State.Destroy()
 	setPlayerTeleporting(false, false)
 	setBoulderTeleporting(false, false)
 	State.SetNoclipEnabled(false, false)
+	State.SetNoVoidRescueEnabled(false, false)
 	State.SetFloatEnabled(false, false)
 	State.SetSpeedHackEnabled(false, false)
 	State.SetInfiniteJumpEnabled(false, false)
@@ -10715,6 +11417,9 @@ function State.Destroy()
 	if _G.CrystalToolsDigHookState == State then
 		_G.CrystalToolsDigHookState = nil
 	end
+	if NoVoidHookState.State == State then
+		NoVoidHookState.State = nil
+	end
 	if ToggleFloat == State.ToggleFloatGlobal then
 		ToggleFloat = nil
 	end
@@ -10728,6 +11433,7 @@ updateBoulderDropdownText()
 State.UpdateDigBoulderDropdownText()
 updateBoulderTeleportButton()
 State.UpdateNoclipButton()
+State.UpdateNoVoidRescueButton()
 State.UpdateFloatButton()
 State.UpdateSpeedButton()
 State.UpdateInfiniteJumpButton()
@@ -10765,6 +11471,7 @@ if Config.FarmStart
 	or Config.DigReplayStart
 	or Config.AutoPlaceRuneStart
 	or Config.NoclipStart
+	or Config.NoVoidRescueStart
 	or Config.FloatStart
 	or Config.SpeedHackStart
 	or Config.InfiniteJumpStart
