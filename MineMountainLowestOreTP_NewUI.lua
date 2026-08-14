@@ -333,6 +333,8 @@ local AllowedUsers = {
 		["15120x"] = true, -- ลูกค้า
 		iamt1x = true, -- ลูกค้า
 		pzykyham1081 = true, -- ลูกค้า
+		fewkung114556 = true, -- ลูกค้า
+		fewkung1145567 = true, -- ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
