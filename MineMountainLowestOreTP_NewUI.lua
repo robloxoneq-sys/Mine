@@ -327,6 +327,9 @@ local AllowedUsers = {
 		Tempura_l2 = true, --ลูกค้า
 		Dodorexy_7 = true, --ลูกค้า
 		minghon5555 = true, --ลูกค้า
+		fewkung11234555 = true, --ลูกค้า
+		fewkung11234554 = true, --ลูกค้า
+		fewkung11234553 = true, --ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -336,6 +339,9 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 
+	fewkung11234555 = true, --ลูกค้า
+	fewkung11234554 = true, --ลูกค้า
+	fewkung11234553 = true, --ลูกค้า
 	minghon5555 = true, --ลูกค้า
 	Dodorexy_7 = true, --ลูกค้า
 	Tempura_l2 = true, --ลูกค้า
@@ -395,6 +401,7 @@ end)
 local Config = {
 	FarmDistance = 100,
 	FarmInterval = 0.2,
+	CrystalFarmTweenEnabled = false,
 	CrystalFarmTweenSpeed = 600,
 	CrystalFarmTweenInterval = 0.05,
 	CrystalFarmCollectDistance = 10,
@@ -441,7 +448,7 @@ local Config = {
 	BoulderRejoinDelay = 1,
 	BoulderLevelFarmLevel = "All",
 	BoulderLevelFarmLevels = { "All" },
-	BoulderLevelFarmUpDistance = 200,
+	BoulderLevelFarmUpDistance = 250,
 	BoulderLevelFarmForwardDistance = 2500,
 	BoulderLevelFarmSpeed = 600,
 	BoulderLevelFarmUnderOffset = -10,
@@ -566,6 +573,10 @@ do
 
 		if tonumber(savedConfig.FarmDistance) and tonumber(savedConfig.FarmDistance) > 0 then
 			Config.FarmDistance = tonumber(savedConfig.FarmDistance)
+		end
+		if savedConfig.CrystalFarmTweenEnabled ~= nil or savedConfig.FarmTweenEnabled ~= nil then
+			Config.CrystalFarmTweenEnabled = savedConfig.CrystalFarmTweenEnabled == true
+				or savedConfig.FarmTweenEnabled == true
 		end
 		if savedConfig.WeightEnabled ~= nil then
 			Config.WeightEnabled = savedConfig.WeightEnabled == true
@@ -712,6 +723,7 @@ local State = {
 	Connections = {},
 	LockedScriptUnlocked = _G.CrystalToolsLockedScriptUnlocked == true,
 	Farming = false,
+	CrystalFarmTweenEnabled = Config.CrystalFarmTweenEnabled == true,
 	CrystalFarmCollecting = false,
 	CrystalFarmTarget = nil,
 	CrystalFarmTween = nil,
@@ -922,6 +934,7 @@ function State.SaveConfig()
 	Config.RadarShopBuyAll = State.RadarShopBuyAll == true
 	Config.RadarShopAutoBuyEnabled = State.BuyingRadar == true
 	Config.RadarShopStartBuy = State.BuyingRadar == true
+	Config.CrystalFarmTweenEnabled = State.CrystalFarmTweenEnabled == true
 	Config.FarmStart = State.Farming == true
 	Config.PlayerTeleportStart = State.PlayerTeleporting == true
 	Config.BoulderTeleportStart = State.BoulderTeleporting == true
@@ -945,6 +958,8 @@ function State.SaveConfig()
 	local data = {
 		Version = 2,
 		FarmDistance = Config.FarmDistance,
+		CrystalFarmTweenEnabled = Config.CrystalFarmTweenEnabled,
+		FarmTweenEnabled = Config.CrystalFarmTweenEnabled,
 		FarmStart = Config.FarmStart,
 		Farming = Config.FarmStart,
 		WeightEnabled = Config.WeightEnabled == true,
@@ -1056,6 +1071,10 @@ State.Translations = {
 	["Below"] = "น้อยกว่า",
 	["Start Farm"] = "เริ่มฟาร์ม",
 	["Stop Farm"] = "หยุดฟาร์ม",
+	["Tween ON"] = "Tween เปิด",
+	["Tween OFF"] = "Tween ปิด",
+	["Tween farm ON"] = "ฟาร์มแบบ Tween เปิด",
+	["Tween farm OFF"] = "ฟาร์มแบบเดิม",
 	["Drop All Backpack"] = "ดรอปของทั้งกระเป๋า",
 	["Drop Crystal"] = "ดรอปคริสตัล",
 	["Drop Rune"] = "ดรอปรูน",
@@ -1894,6 +1913,18 @@ local FarmButton = create("TextButton", {
 }, Content)
 styleSurface(FarmButton, 6, Theme.Accent)
 UI.FarmButton = FarmButton
+
+UI.CrystalFarmTweenButton = create("TextButton", {
+	Position = UDim2.new(1 / 3, 5, 0, 370),
+	Size = UDim2.new(1 / 3, -19, 0, 34),
+	BackgroundColor3 = Theme.ButtonDark,
+	BorderSizePixel = 0,
+	Text = "Tween OFF",
+	TextColor3 = Theme.Text,
+	TextSize = 14,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.CrystalFarmTweenButton, 6, Theme.Accent)
 
 local CrystalActionsLabel = create("TextLabel", {
 	Position = UDim2.new(0, 14, 0, 420),
@@ -2781,6 +2812,7 @@ do
 
 	for _, button in ipairs({
 		FarmButton,
+		UI.CrystalFarmTweenButton,
 		DropAllButton,
 		UI.DropMoneyButton,
 		UI.DigReplayButton,
@@ -2835,6 +2867,7 @@ do
 	end
 
 	for _, button in ipairs({
+		UI.CrystalFarmTweenButton,
 		UI.DropRuneButton,
 		UI.AutoPlaceRuneButton,
 		UI.ManualPlaceRuneButton,
@@ -3040,9 +3073,11 @@ local function applyVerticalControlsLayout()
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
 	UI.FarmDistanceInput.Position = UDim2.new(0, 14, 0, 158)
-	UI.FarmDistanceInput.Size = UDim2.new(1 / 2, -19, 0, 34)
-	FarmButton.Position = UDim2.new(1 / 2, 5, 0, 158)
-	FarmButton.Size = UDim2.new(1 / 2, -19, 0, 34)
+	UI.FarmDistanceInput.Size = UDim2.new(1 / 3, -18, 0, 34)
+	UI.CrystalFarmTweenButton.Position = UDim2.new(1 / 3, 5, 0, 158)
+	UI.CrystalFarmTweenButton.Size = UDim2.new(1 / 3, -19, 0, 34)
+	FarmButton.Position = UDim2.new(2 / 3, 0, 0, 158)
+	FarmButton.Size = UDim2.new(1 / 3, -14, 0, 34)
 
 	CrystalActionsLabel.Position = UDim2.new(0, 14, 0, 208)
 	CrystalActionsLabel.Size = UDim2.new(1, -28, 0, 18)
@@ -3199,8 +3234,10 @@ local function applyHorizontalControlsLayout(width)
 	setRect(LuckInput, filterInputX, 32 + ((30 + rowGap) * 2), filterInputWidth, 30)
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
-	setRect(UI.FarmDistanceInput, leftX, 150, halfWidth, 34)
-	setRect(FarmButton, leftX + halfWidth + 10, 150, halfWidth, 34)
+	local farmThirdWidth = math.floor((columnWidth - 20) / 3)
+	setRect(UI.FarmDistanceInput, leftX, 150, farmThirdWidth, 34)
+	setRect(UI.CrystalFarmTweenButton, leftX + farmThirdWidth + 10, 150, farmThirdWidth, 34)
+	setRect(FarmButton, leftX + (farmThirdWidth * 2) + 20, 150, columnWidth - (farmThirdWidth * 2) - 20, 34)
 
 	setRect(CrystalActionsLabel, leftX, 204, columnWidth, 16)
 	setRect(DropAllButton, leftX, 228, columnWidth, 34)
@@ -3399,6 +3436,46 @@ function State.UpdateFarmDistance(value, persist)
 		State.SaveConfig()
 	end
 	return parsed
+end
+
+function State.UpdateCrystalFarmTweenButton()
+	if not UI.CrystalFarmTweenButton then
+		return
+	end
+
+	if State.CrystalFarmTweenEnabled then
+		State.SetLocalizedText(UI.CrystalFarmTweenButton, "Tween ON")
+		UI.CrystalFarmTweenButton.BackgroundColor3 = Theme.Good
+	else
+		State.SetLocalizedText(UI.CrystalFarmTweenButton, "Tween OFF")
+		UI.CrystalFarmTweenButton.BackgroundColor3 = Theme.ButtonDark
+	end
+end
+
+function State.SetCrystalFarmTweenEnabled(enabled, persist)
+	State.CrystalFarmTweenEnabled = enabled == true
+	Config.CrystalFarmTweenEnabled = State.CrystalFarmTweenEnabled
+
+	if not State.CrystalFarmTweenEnabled then
+		State.CrystalFarmCollecting = false
+		State.CrystalFarmTarget = nil
+		State.CrystalFarmPriorityUntil = 0
+		State.CrystalFarmPriorityHasTarget = false
+		State.CrystalFarmPriorityScanTick = -1000000000
+		if State.CrystalFarmTween then
+			pcall(function()
+				State.CrystalFarmTween:Cancel()
+			end)
+			State.CrystalFarmTween = nil
+		end
+	end
+
+	State.UpdateCrystalFarmTweenButton()
+	setStatus(State.CrystalFarmTweenEnabled and "Tween farm ON" or "Tween farm OFF", State.CrystalFarmTweenEnabled and Theme.Good or Theme.Muted)
+	if persist ~= false then
+		State.SaveConfig()
+	end
+	return State.CrystalFarmTweenEnabled
 end
 
 local function parseMoneyNumber(value)
@@ -8891,6 +8968,9 @@ function State.IsCrystalPriorityActive()
 	if State.Farming ~= true then
 		return false
 	end
+	if State.CrystalFarmTweenEnabled ~= true then
+		return false
+	end
 	if State.CrystalFarmCollecting == true or (tonumber(State.CrystalFarmPriorityUntil) or 0) > os.clock() then
 		return true
 	end
@@ -9127,12 +9207,44 @@ function State.RunFarmCycle()
 	if not State.Farming then
 		return
 	end
-	if State.CrystalFarmCollecting then
-		return
-	end
 
 	local _, root = getCharacterParts(LocalPlayer)
 	if not root then
+		return
+	end
+
+	if State.CrystalFarmTweenEnabled ~= true then
+		local folders = getCrystalFolders()
+		if #folders == 0 then
+			return
+		end
+
+		local fired = 0
+		for _, folder in ipairs(folders) do
+			for _, crystal in ipairs(folder:GetChildren()) do
+				local prompt = crystal:FindFirstChildWhichIsA("ProximityPrompt", true)
+				if prompt then
+					local position = getPromptPosition(prompt)
+					if position then
+						local distance = (position - root.Position).Magnitude
+						if distance <= Config.FarmDistance then
+							local weight, money, luck = getCrystalFilterValues(crystal, prompt)
+							if passesCrystalFilter(weight, money, luck) and State.FireCrystalPrompt(prompt) then
+								fired += 1
+							end
+						end
+					end
+				end
+			end
+		end
+
+		if fired > 0 then
+			setStatus(("Farm fired %d | %s"):format(fired, getFilterSummary()), Theme.Good)
+		end
+		return
+	end
+
+	if State.CrystalFarmCollecting then
 		return
 	end
 
@@ -10078,6 +10190,7 @@ connect(Workspace:GetPropertyChangedSignal("CurrentCamera"), function()
 end)
 State.UpdateFarmDistance(Config.FarmDistance, false)
 syncFilterControls()
+State.UpdateCrystalFarmTweenButton()
 applyResponsiveLayout(true)
 
 connect(RunService.Heartbeat, State.FarmHeartbeat)
@@ -10200,6 +10313,20 @@ connect(FarmButton.Activated, function()
 	UI.BoulderLevelDropdownList.Visible = false
 	BombDropdownList.Visible = false
 	setFarming(not State.Farming)
+end)
+
+connect(UI.CrystalFarmTweenButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.RunePlaceDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	State.SetCrystalFarmTweenEnabled(not State.CrystalFarmTweenEnabled)
 end)
 
 connect(DropAllButton.Activated, function()
@@ -10888,6 +11015,14 @@ function State.SetFarmDistance(distance)
 	return State.UpdateFarmDistance(distance)
 end
 
+function State.SetFarmTween(enabled)
+	return State.SetCrystalFarmTweenEnabled(enabled)
+end
+
+function State.SetCrystalFarmTween(enabled)
+	return State.SetCrystalFarmTweenEnabled(enabled)
+end
+
 function State.DropAll()
 	return State.DropAllBackpackItems()
 end
@@ -11441,6 +11576,7 @@ State.UpdateFloatButton()
 State.UpdateSpeedButton()
 State.UpdateInfiniteJumpButton()
 State.UpdateDigReplayButton()
+State.UpdateCrystalFarmTweenButton()
 updateBoulderEspButton()
 updateBoulderPromptButton()
 State.UpdateBoulderLevelDropdownText()
