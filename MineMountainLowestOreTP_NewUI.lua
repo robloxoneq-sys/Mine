@@ -335,6 +335,7 @@ local AllowedUsers = {
 		pzykyham1081 = true, -- ลูกค้า
 		fewkung114556 = true, -- ลูกค้า
 		fewkung1145567 = true, -- ลูกค้า
+		frankpjlw = true, -- ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -344,6 +345,7 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 
+	frankpjlw = true, -- ลูกค้า
 	fewkung114556 = true, -- ลูกค้า
 	fewkung1145567 = true, -- ลูกค้า
 	pzykyham1081 = true, -- ลูกค้า
