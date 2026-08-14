@@ -332,6 +332,7 @@ local AllowedUsers = {
 		fewkung11234553 = true, --ลูกค้า
 		["15120x"] = true, -- ลูกค้า
 		iamt1x = true, -- ลูกค้า
+		pzykyham1081= true, -- ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -341,6 +342,7 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 
+	pzykyham1081= true, -- ลูกค้า
 	iamt1x = true, -- ลูกค้า
 	["15120x"] = true, -- ลูกค้า
 	fewkung11234555 = true, --ลูกค้า
@@ -410,6 +412,8 @@ local Config = {
 	CrystalFarmTweenInterval = 0.05,
 	CrystalFarmCollectDistance = 10,
 	CrystalFarmCollectTimeout = 8,
+	AutoFavoriteOreStart = false,
+	AutoFavoriteOreScanInterval = 2,
 	WeightEnabled = false,
 	MoneyEnabled = false,
 	LuckEnabled = false,
@@ -582,6 +586,8 @@ do
 			Config.CrystalFarmTweenEnabled = savedConfig.CrystalFarmTweenEnabled == true
 				or savedConfig.FarmTweenEnabled == true
 		end
+		Config.AutoFavoriteOreStart = savedConfig.AutoFavoriteOreStart == true
+			or savedConfig.AutoFavoriteOreEnabled == true
 		if savedConfig.WeightEnabled ~= nil then
 			Config.WeightEnabled = savedConfig.WeightEnabled == true
 		end
@@ -734,6 +740,19 @@ local State = {
 	CrystalFarmPriorityUntil = 0,
 	CrystalFarmPriorityScanTick = -1000000000,
 	CrystalFarmPriorityHasTarget = false,
+	AutoFavoriteOreEnabled = false,
+	AutoFavoriteOreConnections = {},
+	AutoFavoriteOreItemConnections = {},
+	AutoFavoriteOreQueue = {},
+	AutoFavoriteOreQueueSet = {},
+	AutoFavoriteOreScheduled = {},
+	AutoFavoriteOreLastAttempt = {},
+	AutoFavoriteOreAttempts = {},
+	AutoFavoriteOreStats = {
+		Scanned = 0,
+		Favorited = 0,
+		Failed = 0,
+	},
 	Dropping = false,
 	DroppingRunes = false,
 	DroppingMoneyCrystals = false,
@@ -939,6 +958,7 @@ function State.SaveConfig()
 	Config.RadarShopAutoBuyEnabled = State.BuyingRadar == true
 	Config.RadarShopStartBuy = State.BuyingRadar == true
 	Config.CrystalFarmTweenEnabled = State.CrystalFarmTweenEnabled == true
+	Config.AutoFavoriteOreStart = State.AutoFavoriteOreEnabled == true
 	Config.FarmStart = State.Farming == true
 	Config.PlayerTeleportStart = State.PlayerTeleporting == true
 	Config.BoulderTeleportStart = State.BoulderTeleporting == true
@@ -964,6 +984,8 @@ function State.SaveConfig()
 		FarmDistance = Config.FarmDistance,
 		CrystalFarmTweenEnabled = Config.CrystalFarmTweenEnabled,
 		FarmTweenEnabled = Config.CrystalFarmTweenEnabled,
+		AutoFavoriteOreStart = Config.AutoFavoriteOreStart,
+		AutoFavoriteOreEnabled = Config.AutoFavoriteOreStart,
 		FarmStart = Config.FarmStart,
 		Farming = Config.FarmStart,
 		WeightEnabled = Config.WeightEnabled == true,
@@ -1080,6 +1102,11 @@ State.Translations = {
 	["Tween farm ON"] = "ฟาร์มแบบ Tween เปิด",
 	["Tween farm OFF"] = "ฟาร์มแบบเดิม",
 	["Drop All Backpack"] = "ดรอปของทั้งกระเป๋า",
+	["AUTO FAV ON ⭐"] = "ชอบแร่อัตโนมัติ เปิด ⭐",
+	["AUTO FAV OFF ⭐"] = "ชอบแร่อัตโนมัติ ปิด ⭐",
+	["Auto Favorite Ore ON"] = "ชอบแร่อัตโนมัติ เปิด",
+	["Auto Favorite Ore OFF"] = "ชอบแร่อัตโนมัติ ปิด",
+	["ToggleFavorite remote not found"] = "ไม่พบรีโมท ToggleFavorite",
 	["Drop Crystal"] = "ดรอปคริสตัล",
 	["Drop Rune"] = "ดรอปรูน",
 	["Dropping..."] = "กำลังดรอป...",
@@ -1388,6 +1415,7 @@ end
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
 local CrystalDropRequest = Remotes and Remotes:FindFirstChild("CrystalDropRequest")
+State.ToggleFavoriteRemote = Remotes and Remotes:FindFirstChild("ToggleFavorite")
 State.PlotPlaceRequest = Remotes and Remotes:FindFirstChild("PlotPlaceRequest")
 State.DigRequestRemote = Remotes and Remotes:FindFirstChild("DigRequest")
 State.GoHomeRemote = Remotes and Remotes:FindFirstChild("GoHome")
@@ -1943,7 +1971,7 @@ local CrystalActionsLabel = create("TextLabel", {
 
 local DropAllButton = create("TextButton", {
 	Position = UDim2.new(0, 14, 0, 444),
-	Size = UDim2.new(1, -28, 0, 34),
+	Size = UDim2.new(1 / 2, -19, 0, 34),
 	BackgroundColor3 = Theme.ButtonDark,
 	BorderSizePixel = 0,
 	Text = "Drop All Backpack",
@@ -1953,6 +1981,18 @@ local DropAllButton = create("TextButton", {
 }, Content)
 styleSurface(DropAllButton, 6, Theme.Accent)
 UI.DropAllButton = DropAllButton
+
+UI.AutoFavoriteOreButton = create("TextButton", {
+	Position = UDim2.new(1 / 2, 5, 0, 444),
+	Size = UDim2.new(1 / 2, -19, 0, 34),
+	BackgroundColor3 = Theme.ButtonDark,
+	BorderSizePixel = 0,
+	Text = "AUTO FAV OFF ⭐",
+	TextColor3 = Theme.Text,
+	TextSize = 14,
+	Font = Enum.Font.GothamBold
+}, Content)
+styleSurface(UI.AutoFavoriteOreButton, 6, Theme.Accent)
 
 UI.MoneyDropLabel = create("TextLabel", {
 	Position = UDim2.new(0, 14, 0, 494),
@@ -2818,6 +2858,7 @@ do
 		FarmButton,
 		UI.CrystalFarmTweenButton,
 		DropAllButton,
+		UI.AutoFavoriteOreButton,
 		UI.DropMoneyButton,
 		UI.DigReplayButton,
 		UI.BoulderLevelFarmButton,
@@ -2872,6 +2913,7 @@ do
 
 	for _, button in ipairs({
 		UI.CrystalFarmTweenButton,
+		UI.AutoFavoriteOreButton,
 		UI.DropRuneButton,
 		UI.AutoPlaceRuneButton,
 		UI.ManualPlaceRuneButton,
@@ -2912,6 +2954,337 @@ styleSurface(StatusLabel, 6, Theme.GlowSoft, 0.55, 1)
 local function setStatus(text, color)
 	StatusLabel.Text = text
 	StatusLabel.TextColor3 = color or Theme.Muted
+end
+
+do
+local AUTO_FAVORITE_ORE_REMOTE_DELAY = 0.08
+local AUTO_FAVORITE_ORE_MAX_ATTEMPTS = 3
+local AUTO_FAVORITE_ORE_ATTEMPT_COOLDOWN = 1.25
+local AUTO_FAVORITE_ORE_ATTRIBUTES = {
+	"Tier",
+	"Value",
+	"WeightKg",
+	"MaterialName",
+	"DisplayName",
+	"Favorited",
+}
+
+local function disconnectAutoFavoriteOreConnection(connection)
+	if connection then
+		pcall(function()
+			connection:Disconnect()
+		end)
+	end
+end
+
+local function disconnectAutoFavoriteOreConnections()
+	for index, connection in ipairs(State.AutoFavoriteOreConnections) do
+		disconnectAutoFavoriteOreConnection(connection)
+		State.AutoFavoriteOreConnections[index] = nil
+	end
+
+	for item, connections in pairs(State.AutoFavoriteOreItemConnections) do
+		for index, connection in ipairs(connections) do
+			disconnectAutoFavoriteOreConnection(connection)
+			connections[index] = nil
+		end
+		State.AutoFavoriteOreItemConnections[item] = nil
+	end
+end
+
+local function clearAutoFavoriteOreQueues()
+	table.clear(State.AutoFavoriteOreQueue)
+	table.clear(State.AutoFavoriteOreQueueSet)
+	table.clear(State.AutoFavoriteOreScheduled)
+	State.AutoFavoriteOreQueueRunning = false
+end
+
+local function isAutoFavoriteOreTrue(value)
+	return value == true or value == "true" or value == 1 or value == "1"
+end
+
+local function getAutoFavoriteOreDisplayName(item)
+	local displayName = item and item:GetAttribute("DisplayName")
+	if displayName ~= nil and tostring(displayName) ~= "" then
+		return tostring(displayName)
+	end
+	return item and tostring(item.Name) or "?"
+end
+
+local function hasAutoFavoriteOreKgName(item)
+	return getAutoFavoriteOreDisplayName(item):find("%[[%d%.]+kg%]") ~= nil
+end
+
+local function isAutoFavoriteOreIgnoredTool(item)
+	return isAutoFavoriteOreTrue(item:GetAttribute("IsPickaxe"))
+		or item:GetAttribute("RadarId") ~= nil
+		or item:GetAttribute("BombId") ~= nil
+		or item:GetAttribute("RuneId") ~= nil
+		or isAutoFavoriteOreTrue(item:GetAttribute("Consumable"))
+end
+
+local function isAutoFavoriteOreTool(item)
+	if typeof(item) ~= "Instance" or not item:IsA("Tool") then
+		return false
+	end
+	if isAutoFavoriteOreIgnoredTool(item) then
+		return false
+	end
+	if item:GetAttribute("Tier") == nil or item:GetAttribute("Value") == nil then
+		return false
+	end
+	return item:GetAttribute("WeightKg") ~= nil
+		or item:GetAttribute("MaterialName") ~= nil
+		or hasAutoFavoriteOreKgName(item)
+end
+
+local function isAutoFavoriteOreFavorited(item)
+	return isAutoFavoriteOreTrue(item:GetAttribute("Favorited"))
+		or isAutoFavoriteOreTrue(item:GetAttribute("Favorite"))
+		or isAutoFavoriteOreTrue(item:GetAttribute("IsFavorite"))
+		or isAutoFavoriteOreTrue(item:GetAttribute("Favourite"))
+		or isAutoFavoriteOreTrue(item:GetAttribute("Locked"))
+end
+
+local function getAutoFavoriteOreRemote()
+	if State.ToggleFavoriteRemote and State.ToggleFavoriteRemote.Parent then
+		return State.ToggleFavoriteRemote
+	end
+	State.ToggleFavoriteRemote = Remotes and Remotes:FindFirstChild("ToggleFavorite")
+	return State.ToggleFavoriteRemote
+end
+
+local function canAttemptAutoFavoriteOre(item)
+	local now = os.clock()
+	local lastAttempt = State.AutoFavoriteOreLastAttempt[item]
+	if lastAttempt and now - lastAttempt < AUTO_FAVORITE_ORE_ATTEMPT_COOLDOWN then
+		return false
+	end
+	if (State.AutoFavoriteOreAttempts[item] or 0) >= AUTO_FAVORITE_ORE_MAX_ATTEMPTS then
+		return false
+	end
+	State.AutoFavoriteOreLastAttempt[item] = now
+	State.AutoFavoriteOreAttempts[item] = (State.AutoFavoriteOreAttempts[item] or 0) + 1
+	return true
+end
+
+local function tryAutoFavoriteOre(item, reason)
+	if not State.AutoFavoriteOreEnabled or not item or not item.Parent then
+		return false
+	end
+	State.AutoFavoriteOreStats.Scanned += 1
+	if not isAutoFavoriteOreTool(item) or isAutoFavoriteOreFavorited(item) or not canAttemptAutoFavoriteOre(item) then
+		return false
+	end
+
+	local remote = getAutoFavoriteOreRemote()
+	if not (remote and remote:IsA("RemoteEvent")) then
+		setStatus("ToggleFavorite remote not found", Theme.Bad)
+		return false
+	end
+
+	local wasFavorited = isAutoFavoriteOreFavorited(item)
+	local ok, err = pcall(function()
+		item:SetAttribute("Favorited", true)
+		remote:FireServer(item, true)
+	end)
+
+	if ok then
+		State.AutoFavoriteOreStats.Favorited += 1
+		setStatus(("Auto favorite ore: %s"):format(getAutoFavoriteOreDisplayName(item)), Theme.Good)
+		log("Auto favorite ore", getAutoFavoriteOreDisplayName(item), reason or "scan")
+		return true
+	end
+
+	State.AutoFavoriteOreStats.Failed += 1
+	if not wasFavorited then
+		pcall(function()
+			item:SetAttribute("Favorited", false)
+		end)
+	end
+	warn("[CrystalTools] Auto favorite ore failed:", tostring(err))
+	return false
+end
+
+local processAutoFavoriteOreQueue
+
+processAutoFavoriteOreQueue = function()
+	if State.AutoFavoriteOreQueueRunning then
+		return
+	end
+	State.AutoFavoriteOreQueueRunning = true
+	task.spawn(function()
+		while State.AutoFavoriteOreEnabled and #State.AutoFavoriteOreQueue > 0 do
+			local item = table.remove(State.AutoFavoriteOreQueue, 1)
+			local reason = State.AutoFavoriteOreQueueSet[item]
+			State.AutoFavoriteOreQueueSet[item] = nil
+			tryAutoFavoriteOre(item, reason)
+			task.wait(AUTO_FAVORITE_ORE_REMOTE_DELAY)
+		end
+		State.AutoFavoriteOreQueueRunning = false
+	end)
+end
+
+local function enqueueAutoFavoriteOre(item, reason)
+	if not State.AutoFavoriteOreEnabled or not item or State.AutoFavoriteOreQueueSet[item] then
+		return
+	end
+	State.AutoFavoriteOreQueueSet[item] = reason or "queued"
+	table.insert(State.AutoFavoriteOreQueue, item)
+	processAutoFavoriteOreQueue()
+end
+
+local function scheduleAutoFavoriteOreCheck(item, reason)
+	if not State.AutoFavoriteOreEnabled or not item or State.AutoFavoriteOreScheduled[item] then
+		return
+	end
+	State.AutoFavoriteOreScheduled[item] = true
+	task.spawn(function()
+		for _, delaySeconds in ipairs({ 0, 0.15, 0.35, 0.75, 1.25 }) do
+			if delaySeconds > 0 then
+				task.wait(delaySeconds)
+			end
+			if not State.AutoFavoriteOreEnabled or not item or not item.Parent then
+				break
+			end
+			if isAutoFavoriteOreTool(item) then
+				State.AutoFavoriteOreScheduled[item] = nil
+				enqueueAutoFavoriteOre(item, reason)
+				return
+			end
+		end
+		State.AutoFavoriteOreScheduled[item] = nil
+	end)
+end
+
+local function unwatchAutoFavoriteOreItem(item)
+	local connections = State.AutoFavoriteOreItemConnections[item]
+	if not connections then
+		return
+	end
+	for index, connection in ipairs(connections) do
+		disconnectAutoFavoriteOreConnection(connection)
+		connections[index] = nil
+	end
+	State.AutoFavoriteOreItemConnections[item] = nil
+	State.AutoFavoriteOreScheduled[item] = nil
+	State.AutoFavoriteOreQueueSet[item] = nil
+end
+
+local function watchAutoFavoriteOreItem(item, reason)
+	if not State.AutoFavoriteOreEnabled or not item then
+		return
+	end
+	if State.AutoFavoriteOreItemConnections[item] then
+		scheduleAutoFavoriteOreCheck(item, reason)
+		return
+	end
+
+	local connections = {}
+	State.AutoFavoriteOreItemConnections[item] = connections
+	for _, attributeName in ipairs(AUTO_FAVORITE_ORE_ATTRIBUTES) do
+		table.insert(connections, item:GetAttributeChangedSignal(attributeName):Connect(function()
+			scheduleAutoFavoriteOreCheck(item, "attribute")
+		end))
+	end
+	table.insert(connections, item.AncestryChanged:Connect(function(_, parent)
+		if parent == nil then
+			unwatchAutoFavoriteOreItem(item)
+		end
+	end))
+	scheduleAutoFavoriteOreCheck(item, reason)
+end
+
+local function scanAutoFavoriteOreContainer(container, reason)
+	if not container then
+		return
+	end
+	for _, item in ipairs(container:GetChildren()) do
+		watchAutoFavoriteOreItem(item, reason)
+	end
+end
+
+local function scanAutoFavoriteOreAll(reason)
+	local backpack = LocalPlayer and (LocalPlayer:FindFirstChildOfClass("Backpack") or LocalPlayer:FindFirstChild("Backpack"))
+	if backpack then
+		scanAutoFavoriteOreContainer(backpack, reason or "scan")
+	end
+	if LocalPlayer and LocalPlayer.Character then
+		scanAutoFavoriteOreContainer(LocalPlayer.Character, reason or "scan")
+	end
+end
+
+local function connectAutoFavoriteOreContainer(container)
+	if not container then
+		return
+	end
+	scanAutoFavoriteOreContainer(container, "startup")
+	table.insert(State.AutoFavoriteOreConnections, container.ChildAdded:Connect(function(item)
+		watchAutoFavoriteOreItem(item, "added")
+	end))
+end
+
+function State.UpdateAutoFavoriteOreButton()
+	if not UI.AutoFavoriteOreButton then
+		return
+	end
+	if State.AutoFavoriteOreEnabled then
+		State.SetLocalizedText(UI.AutoFavoriteOreButton, "AUTO FAV ON ⭐")
+		UI.AutoFavoriteOreButton.BackgroundColor3 = Theme.Good
+	else
+		State.SetLocalizedText(UI.AutoFavoriteOreButton, "AUTO FAV OFF ⭐")
+		UI.AutoFavoriteOreButton.BackgroundColor3 = Theme.ButtonDark
+	end
+end
+
+function State.SetAutoFavoriteOreEnabled(enabled, persist)
+	if enabled == true and not getAutoFavoriteOreRemote() then
+		State.AutoFavoriteOreEnabled = false
+		State.UpdateAutoFavoriteOreButton()
+		setStatus("ToggleFavorite remote not found", Theme.Bad)
+		return false
+	end
+
+	State.AutoFavoriteOreEnabled = enabled == true
+	Config.AutoFavoriteOreStart = State.AutoFavoriteOreEnabled
+	disconnectAutoFavoriteOreConnections()
+	clearAutoFavoriteOreQueues()
+
+	if State.AutoFavoriteOreEnabled then
+		local backpack = LocalPlayer and (LocalPlayer:FindFirstChildOfClass("Backpack") or LocalPlayer:FindFirstChild("Backpack"))
+		if backpack then
+			connectAutoFavoriteOreContainer(backpack)
+		end
+		if LocalPlayer and LocalPlayer.Character then
+			connectAutoFavoriteOreContainer(LocalPlayer.Character)
+		end
+		table.insert(State.AutoFavoriteOreConnections, LocalPlayer.ChildAdded:Connect(function(child)
+			if State.AutoFavoriteOreEnabled and child:IsA("Backpack") then
+				connectAutoFavoriteOreContainer(child)
+			end
+		end))
+		table.insert(State.AutoFavoriteOreConnections, LocalPlayer.CharacterAdded:Connect(function(character)
+			if State.AutoFavoriteOreEnabled then
+				connectAutoFavoriteOreContainer(character)
+			end
+		end))
+		task.spawn(function()
+			while State.AutoFavoriteOreEnabled do
+				scanAutoFavoriteOreAll("rescan")
+				task.wait(Config.AutoFavoriteOreScanInterval or 2)
+			end
+		end)
+		setStatus("Auto Favorite Ore ON", Theme.Good)
+	else
+		setStatus("Auto Favorite Ore OFF", Theme.Muted)
+	end
+
+	State.UpdateAutoFavoriteOreButton()
+	if persist ~= false then
+		State.SaveConfig()
+	end
+	return State.AutoFavoriteOreEnabled
+end
 end
 
 function State.IsLockedScriptUnlocked()
@@ -3086,7 +3459,9 @@ local function applyVerticalControlsLayout()
 	CrystalActionsLabel.Position = UDim2.new(0, 14, 0, 208)
 	CrystalActionsLabel.Size = UDim2.new(1, -28, 0, 18)
 	DropAllButton.Position = UDim2.new(0, 14, 0, 232)
-	DropAllButton.Size = UDim2.new(1, -28, 0, 34)
+	DropAllButton.Size = UDim2.new(1 / 2, -19, 0, 34)
+	UI.AutoFavoriteOreButton.Position = UDim2.new(1 / 2, 5, 0, 232)
+	UI.AutoFavoriteOreButton.Size = UDim2.new(1 / 2, -19, 0, 34)
 
 	UI.MoneyDropLabel.Position = UDim2.new(0, 14, 0, 282)
 	UI.MoneyDropLabel.Size = UDim2.new(1, -28, 0, 18)
@@ -3244,7 +3619,8 @@ local function applyHorizontalControlsLayout(width)
 	setRect(FarmButton, leftX + (farmThirdWidth * 2) + 20, 150, columnWidth - (farmThirdWidth * 2) - 20, 34)
 
 	setRect(CrystalActionsLabel, leftX, 204, columnWidth, 16)
-	setRect(DropAllButton, leftX, 228, columnWidth, 34)
+	setRect(DropAllButton, leftX, 228, halfWidth, 34)
+	setRect(UI.AutoFavoriteOreButton, leftX + halfWidth + 10, 228, halfWidth, 34)
 	setRect(UI.MoneyDropLabel, leftX, 274, columnWidth, 16)
 	setRect(UI.MoneyDropInput, leftX, 298, halfWidth, 34)
 	setRect(UI.DropMoneyButton, leftX + halfWidth + 10, 298, halfWidth, 34)
@@ -10345,6 +10721,20 @@ connect(DropAllButton.Activated, function()
 	task.spawn(State.DropAllBackpackItems)
 end)
 
+connect(UI.AutoFavoriteOreButton.Activated, function()
+	FilterTypeList.Visible = false
+	WeightModeList.Visible = false
+	PlayerDropdownList.Visible = false
+	BoulderDropdownList.Visible = false
+	UI.RuneDropdownList.Visible = false
+	UI.RunePlaceDropdownList.Visible = false
+	UI.DigBoulderDropdownList.Visible = false
+	UI.BoulderLevelDropdownList.Visible = false
+	BombDropdownList.Visible = false
+	UI.RadarDropdownList.Visible = false
+	State.SetAutoFavoriteOreEnabled(not State.AutoFavoriteOreEnabled)
+end)
+
 connect(UI.DropMoneyButton.Activated, function()
 	FilterTypeList.Visible = false
 	WeightModeList.Visible = false
@@ -11027,6 +11417,18 @@ function State.SetCrystalFarmTween(enabled)
 	return State.SetCrystalFarmTweenEnabled(enabled)
 end
 
+function State.SetAutoFavoriteOre(enabled)
+	return State.SetAutoFavoriteOreEnabled(enabled)
+end
+
+function State.StartAutoFavoriteOre()
+	return State.SetAutoFavoriteOreEnabled(true)
+end
+
+function State.StopAutoFavoriteOre()
+	return State.SetAutoFavoriteOreEnabled(false)
+end
+
 function State.DropAll()
 	return State.DropAllBackpackItems()
 end
@@ -11508,6 +11910,9 @@ function State.ApplySavedConfigStarts()
 	if Config.FarmStart then
 		setFarming(true, false)
 	end
+	if Config.AutoFavoriteOreStart then
+		State.SetAutoFavoriteOreEnabled(true, false)
+	end
 	if Config.PlayerTeleportStart then
 		setPlayerTeleporting(true, false)
 	end
@@ -11530,6 +11935,7 @@ end
 
 function State.Destroy()
 	setFarming(false, false)
+	State.SetAutoFavoriteOreEnabled(false, false)
 	setBuyingBomb(false, false)
 	State.SetBuyingRadar(false, false)
 	State.SetDigReplayEnabled(false, false)
@@ -11581,6 +11987,7 @@ State.UpdateSpeedButton()
 State.UpdateInfiniteJumpButton()
 State.UpdateDigReplayButton()
 State.UpdateCrystalFarmTweenButton()
+State.UpdateAutoFavoriteOreButton()
 updateBoulderEspButton()
 updateBoulderPromptButton()
 State.UpdateBoulderLevelDropdownText()
@@ -11604,6 +12011,7 @@ State.LocalizationReady = true
 State.RefreshLanguage()
 
 if Config.FarmStart
+	or Config.AutoFavoriteOreStart
 	or Config.PlayerTeleportStart
 	or Config.BoulderTeleportStart
 	or Config.BoulderEspStart
