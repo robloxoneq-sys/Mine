@@ -330,6 +330,8 @@ local AllowedUsers = {
 		fewkung11234555 = true, --ลูกค้า
 		fewkung11234554 = true, --ลูกค้า
 		fewkung11234553 = true, --ลูกค้า
+		["15120x"] = true, -- ลูกค้า
+		iamt1x = true, -- ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -339,6 +341,8 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 
+	iamt1x = true, -- ลูกค้า
+	["15120x"] = true, -- ลูกค้า
 	fewkung11234555 = true, --ลูกค้า
 	fewkung11234554 = true, --ลูกค้า
 	fewkung11234553 = true, --ลูกค้า
