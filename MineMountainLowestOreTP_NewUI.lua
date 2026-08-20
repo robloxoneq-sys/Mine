@@ -340,6 +340,7 @@ local AllowedUsers = {
 		byqscrpb5207 = true, -- ลูกค้า
 		iiuygdcn6663 = true, -- ลูกค้า
 		Finn_100123 = true, -- ลูกค้า
+		eventty555 = true, -- ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -349,6 +350,7 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 
+	eventty555 = true, -- ลูกค้า
 	Finn_100123 = true, -- ลูกค้า
 	iiuygdcn6663 = true, -- ลูกค้า
 	byqscrpb5207 = true, -- ลูกค้า
