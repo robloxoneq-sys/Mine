@@ -343,6 +343,7 @@ local AllowedUsers = {
 		eventty555 = true, -- ลูกค้า
 		Mosza2545 = true, -- ลูกค้า
 		zawakites22 = true, -- ลูกค้า
+		fafaroh007 = true, -- ลูกค้า
 	},
 	quut16pkbn34 = true,
 	Raccoonkaiv4 = true,
@@ -352,6 +353,7 @@ local AllowedUsers = {
 	Honlnwzag2g = true,
 
 
+	fafaroh007 = true, -- ลูกค้า
 	zawakites22 = true, -- ลูกค้า
 	Mosza2545 = true, -- ลูกค้า
 	eventty555 = true, -- ลูกค้า
